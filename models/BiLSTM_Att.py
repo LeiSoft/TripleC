@@ -29,13 +29,13 @@ class BiLSTM_Att_Model(ABCClassificationModel):
                 'return_sequences': True
             },
             'layer_dropout': {
-                'rate': 0.2,
+                'rate': 0.5,
                 'name': 'layer_dropout'
             },
-            # 'layer_dropout_output': {
-            #     'rate': 0.5,
-            #     'name': 'layer_dropout_output'
-            # },
+            'layer_dropout_output': {
+                'rate': 0.5,
+                'name': 'layer_dropout_output'
+            },
             'layer_time_distributed': {},
             'layer_output': {
                 'activation': 'softmax'
@@ -65,7 +65,7 @@ class BiLSTM_Att_Model(ABCClassificationModel):
 
         '''
         define attention layer
-        as a nlp-rookie im wondering whether this is a right direction XD
+        as a nlp-rookie im wondering whether this is a right way XD
         '''
         query_value_attention_seq = L.Attention()([tensor, tensor])
 
@@ -75,7 +75,7 @@ class BiLSTM_Att_Model(ABCClassificationModel):
         input_layer = L.Concatenate(axis=-1)([query_encoding, query_value_attention])
 
         # output tensor
-        # input_layer = L.Dropout(**config['layer_dropout_output'])(input_layer)
+        input_layer = L.Dropout(**config['layer_dropout_output'])(input_layer)
         tensor = L.Dense(output_dim, **config['layer_output'])(input_layer)
 
         # use this activation layer as final activation to support multi-label classification
