@@ -30,7 +30,7 @@ def formatted(path, label):
 
     output = [(
         clean_sentence(data.loc[i, 'citation_context'].replace("#AUTHOR_TAG", data.loc[i, 'cited_title'])
-                       + data.loc[i, 'citing_title']),
+                       ),
         str(data.loc[i, label])
     )
         for i in range(len(data))]
