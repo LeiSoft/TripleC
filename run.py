@@ -1,5 +1,4 @@
 from train import Trainer
-from pretrain import PreTrainer
 
 import argparse
 
@@ -20,4 +19,5 @@ if __name__ == '__main__':
     assert args.task_type in ['intent', 'influence'], "only support [intent, influence]"
 
     trainer = Trainer(args)
-    trainer.train("./datasets/"+args.task_type+"/train.tsv", test_size=0.2, validation=False)
+    # test参数为False则不做测试集验证，只进行模型训练
+    trainer.train("./datasets/"+args.task_type+"/train.tsv", test_size=0.2, validation=True, test=False)

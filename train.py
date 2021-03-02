@@ -19,7 +19,7 @@ class Trainer:
             self.checkpoint_path = _args.model_folder + '/bert_model.ckpt'
             self.config_path = _args.model_folder + '/bert_config.json'
             self.vocab_path = _args.model_folder + '/vocab.txt'
-        # self.task_type = _args.task_type
+        self.task_type = _args.task_type
 
     def _embedding(self):
         if self.model_type == "w2v":
@@ -45,9 +45,12 @@ class Trainer:
         embedding = self._embedding()
         x_data = self._tokenizing(x_data)
 
-        x_train, x_test, y_train, y_test = train_test_split(
-            x_data, y_data, test_size=params["test_size"], random_state=3
-        )
+        if params["test"]:
+            x_train, x_test, y_train, y_test = train_test_split(
+                x_data, y_data, test_size=params["test_size"], random_state=3
+            )
+        else:
+            x_train, y_train = x_data, y_data
         model = BiLSTM_Att_Model(embedding)
 
         if params["validation"]:
@@ -57,10 +60,27 @@ class Trainer:
             model.fit(x_train, y_train, x_vali, y_vali, batch_size=64, epochs=20, callbacks=None, fit_kwargs=None)
         else:
             model.fit(x_train, y_train, batch_size=64, epochs=20, callbacks=None, fit_kwargs=None)
-        self.evaluate(model, x_test, y_test)
+
+        if params["test"]:
+            self.evaluate(model, x_test, y_test)
+
+        x_interface = load_test_data("./datasets/"+self.task_type+"/test.tsv")
+        y_interface = model.predict(x_interface, batch_size=64, truncating=False, predict_kwargs=None)
+        self._generate(y_interface)
 
     @staticmethod
     def evaluate(model, x_test, y_test):
         report = model.evaluate(x_test, y_test, batch_size=64, digits=4, truncating=False)
         print(report)
         # model.save("./models/output")
+
+    def _generate(self, y):
+        if self.task_type == "intent":
+            head = 'unique_id,citation_class_label'
+        else:
+            head = 'unique_id,citation_influence_label'
+
+        with open("./datasets/"+self.task_type+"_prediction.csv", 'w', encoding='utf-8') as f:
+            f.write(head+"\n")
+            for index, label in enumerate(y):
+                f.write("CCT"+str(index+1)+","+label+"\n")

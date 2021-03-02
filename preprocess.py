@@ -30,7 +30,7 @@ def formatted(path, label):
 
     output = [(
         clean_sentence(data.loc[i, 'citation_context'].replace("#AUTHOR_TAG", data.loc[i, 'cited_title'])
-                       ),
+                       + data.loc[i, 'citing_title']),
         str(data.loc[i, label])
     )
         for i in range(len(data))]
@@ -43,7 +43,8 @@ def formatted(path, label):
 def formatted_test(path):
     data = pd.read_csv(path + "SDP_test.csv", sep=',', header=0)
 
-    test = [clean_sentence(data.loc[i, 'citation_context'].replace("#AUTHOR_TAG", data.loc[i, 'cited_title']))
+    test = [clean_sentence(data.loc[i, 'citation_context'].replace("#AUTHOR_TAG", data.loc[i, 'cited_title'])
+                           + data.loc[i, 'citing_title'])
             for i in range(len(data))]
     with open("/".join(path.split("/")[:2]) + "/test.tsv", 'w', encoding='utf-8') as f:
         for line in test:
