@@ -51,7 +51,7 @@ class Trainer:
             )
         else:
             x_train, y_train = x_data, y_data
-        model = BiLSTM_Att_Model(embedding)
+        model = BiLSTM_Att_Model()
 
         if params["validation"]:
             x_train, x_vali, y_train, y_vali = train_test_split(

@@ -39,7 +39,13 @@ class BiLSTM_Att_Model(ABCClassificationModel):
             'layer_time_distributed': {},
             'layer_output': {
                 'activation': 'softmax'
-            }
+            },
+            'conv_layer1': {
+                'filters': 128,
+                'kernel_size': 3,
+                'padding': 'same',
+                'activation': 'relu'
+            },
         }
 
     def build_model_arc(self):
@@ -55,6 +61,7 @@ class BiLSTM_Att_Model(ABCClassificationModel):
         # Define layers for BiLSTM
         layer_stack = [
             L.Bidirectional(L.LSTM(**config['layer_bilstm1']), name='layer_bilstm1'),
+            L.Conv1D(**config['conv_layer1']),
             L.Dropout(**config['layer_dropout'])
         ]
 
@@ -62,7 +69,6 @@ class BiLSTM_Att_Model(ABCClassificationModel):
         tensor = embed_model.output
         for layer in layer_stack:
             tensor = layer(tensor)
-
         '''
         define attention layer
         as a nlp-rookie im wondering whether this is a right way XD
