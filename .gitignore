@@ -5,6 +5,7 @@ __pycache__
 models/cased_L-12_H-768_A-12
 models/uncased_L-12_H-768_A-12
 models/cased_L-24_H-1024_A-16
+models/uncased_L-24_H-1024_A-16
 models/multi_cased_L-12_H-768_A-12
 models/output
 models/wordvectors/fasttext

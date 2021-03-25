@@ -6,10 +6,20 @@ from kashgari.tasks.classification.abc_model import ABCClassificationModel
 from kashgari.layers import L
 
 import logging
+
 logging.basicConfig(level='DEBUG')
 
+import tensorflow as tf
+import os
 
-class BiLSTM_Att_Model(ABCClassificationModel):
+os.environ['CUDA_VISIBLE_DEVICES'] = "0,1,2,3"
+config = tf.compat.v1.ConfigProto()
+config.gpu_options.visible_device_list = '0,1,2,3'
+config.gpu_options.allow_growth = True
+session = tf.compat.v1.Session(config=config)
+
+
+class BiLSTM_Conv_Att_Model(ABCClassificationModel):
 
     @classmethod
     def default_hyper_parameters(cls) -> Dict[str, Dict[str, Any]]:
@@ -25,7 +35,7 @@ class BiLSTM_Att_Model(ABCClassificationModel):
         """
         return {
             'layer_bilstm1': {
-                'units': 128,
+                'units': 256,
                 'return_sequences': True
             },
             'layer_dropout': {
@@ -41,9 +51,9 @@ class BiLSTM_Att_Model(ABCClassificationModel):
                 'activation': 'softmax'
             },
             'conv_layer1': {
-                'filters': 128,
-                'kernel_size': 3,
-                'padding': 'same',
+                'filters': 256,
+                'kernel_size': 5,
+                'padding': 'valid',
                 'activation': 'relu'
             },
         }
@@ -52,7 +62,7 @@ class BiLSTM_Att_Model(ABCClassificationModel):
         """
         build model architectural
 
-        BiLSTM + Attention
+        BiLSTM + Convolution + Attention
         """
         output_dim = self.label_processor.vocab_size
         config = self.hyper_parameters
@@ -65,7 +75,7 @@ class BiLSTM_Att_Model(ABCClassificationModel):
             L.Dropout(**config['layer_dropout'])
         ]
 
-        # tensor flow in BiLSTM {tensor:=layer(tensor)}
+        # tensor flow in Layers {tensor:=layer(tensor)}
         tensor = embed_model.output
         for layer in layer_stack:
             tensor = layer(tensor)

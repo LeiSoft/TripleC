@@ -2,7 +2,7 @@ from kashgari.embeddings import TransformerEmbedding
 from kashgari.embeddings import WordEmbedding
 from kashgari.tokenizers import BertTokenizer
 from kashgari.tasks.classification import CNN_Attention_Model, BiLSTM_Model
-from models.BiLSTM_Att import BiLSTM_Att_Model
+from models.BiLSTM_Conv_Att import BiLSTM_Conv_Att_Model
 from models.RNN_Att import RNN_Att_Model
 
 from sklearn.model_selection import train_test_split
@@ -51,7 +51,7 @@ class Trainer:
             )
         else:
             x_train, y_train = x_data, y_data
-        model = BiLSTM_Att_Model()
+        model = BiLSTM_Conv_Att_Model(embedding)
 
         if params["validation"]:
             x_train, x_vali, y_train, y_vali = train_test_split(
@@ -65,7 +65,7 @@ class Trainer:
             self.evaluate(model, x_test, y_test)
 
         x_interface = load_test_data("./datasets/"+self.task_type+"/test.tsv")
-        y_interface = model.predict(x_interface, batch_size=64, truncating=False, predict_kwargs=None)
+        y_interface = model.predict(x_interface, batch_size=64, truncating=True, predict_kwargs=None)
         self._generate(y_interface)
 
     @staticmethod
