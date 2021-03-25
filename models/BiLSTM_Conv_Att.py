@@ -9,14 +9,14 @@ import logging
 
 logging.basicConfig(level='DEBUG')
 
-import tensorflow as tf
-import os
+# import tensorflow as tf
+# import os
 
-os.environ['CUDA_VISIBLE_DEVICES'] = "0,1,2,3"
-config = tf.compat.v1.ConfigProto()
-config.gpu_options.visible_device_list = '0,1,2,3'
-config.gpu_options.allow_growth = True
-session = tf.compat.v1.Session(config=config)
+# os.environ['CUDA_VISIBLE_DEVICES'] = "0,1,2,3"
+# config = tf.compat.v1.ConfigProto()
+# config.gpu_options.visible_device_list = '0,1,2,3'
+# config.gpu_options.allow_growth = True
+# session = tf.compat.v1.Session(config=config)
 
 
 class BiLSTM_Conv_Att_Model(ABCClassificationModel):

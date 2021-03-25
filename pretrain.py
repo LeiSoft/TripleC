@@ -1,10 +1,10 @@
-from transformers import BertForSequenceClassification, Trainer, TrainingArguments, BertTokenizer
+from transformers import TFTrainer, TFTrainingArguments, BertTokenizer
 import tensorflow as tf
-import tensorflow_datasets as tfds
-from kashgari.embeddings import BertEmbedding
-from kashgari.processors import SequenceProcessor
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from sklearn.model_selection import train_test_split
 import argparse
-from transformers import LineByLineTextDataset, DataCollatorForLanguageModeling, AlbertForMaskedLM, AlbertConfig
+from transformers import TFBertModel
+from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 
 from train import Trainer
 from utils import *
@@ -22,48 +22,58 @@ class PreTrainer(Trainer):
         for i in range(len(y_data)):
             y_data[i] = int(y_data[i])
 
-        x_data = [" ".join(seq) for seq in x_data]
+        x_data = ["[CLS] "+" ".join(seq)+" [SEP]" for seq in x_data]
 
-        dataset = LineByLineTextDataset(
-            tokenizer=self.tokenizer,
-            file_path="./datasets/corpora.txt",
-            block_size=256,
-        )
+        tokenizer = BertTokenizer.from_pretrained("D:/python/myLibs/bert-base-cased")
+        tokenized_texts = [tokenizer.tokenize(sent) for sent in x_data]
 
-        # embeder = self._embedding()
-        # processor = SequenceProcessor()
-        # embeder.setup_text_processor(processor)
-        # x_data = embeder.embed(x_data)
-        #
-        # def _tensor():
-        #     for a, b in zip(x_data, y_data):
-        #         yield (a, [b])
-        #
-        # # shape = (tf.TensorShape([len(x_data[0]), len(x_data[0][0])]), tf.TensorShape([len(x_data[0]), 1]))
-        # dataset = tf.data.Dataset.from_generator(generator=_tensor, output_types=(tf.int32, tf.int32))
+        # Set the maximum sequence length.
+        MAX_LEN = 128
+        # Pad our input tokens
+        input_ids = pad_sequences([tokenizer.convert_tokens_to_ids(txt) for txt in tokenized_texts],
+                                  maxlen=MAX_LEN, dtype="long", truncating="post", padding="post")
+        # Use the BERT tokenizer to convert the tokens to their index numbers in the BERT vocabulary
+        input_ids = [tokenizer.convert_tokens_to_ids(x) for x in tokenized_texts]
+        input_ids = pad_sequences(input_ids, maxlen=MAX_LEN, dtype="long", truncating="post", padding="post")
+
+        # Create attention masks
+        attention_masks = []
+        # Create a mask of 1s for each token followed by 0s for padding
+        for seq in input_ids:
+            seq_mask = [float(i > 0) for i in seq]
+            attention_masks.append(seq_mask)
+
+        train_inputs, validation_inputs, train_labels, validation_labels = train_test_split(input_ids, labels,
+                                                                                            random_state=2018,
+                                                                                            test_size=0.1)
+        train_masks, validation_masks, _, _ = train_test_split(attention_masks, input_ids,
+                                                               random_state=2018, test_size=0.1)
+
+        # Convert all of our data into torch tensors, the required datatype for our model
+        train_inputs = tf.constant(train_inputs)
+        validation_inputs = tf.constant.tensor(validation_inputs)
+        train_labels = tf.constant.tensor(train_labels)
+        validation_labels = tf.constant.tensor(validation_labels)
+        train_masks = tf.constant.tensor(train_masks)
+        validation_masks = tf.constant.tensor(validation_masks)
+
+        # Select a batch size for training.
+        batch_size = 32
+
+        # Create an iterator of our data with torch DataLoader
+        train_data = TensorDataset(train_inputs, train_masks, train_labels)
+        train_sampler = RandomSampler(train_data)
+        train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=batch_size)
+        validation_data = TensorDataset(validation_inputs, validation_masks, validation_labels)
+        validation_sampler = SequentialSampler(validation_data)
+        validation_dataloader = DataLoader(validation_data, sampler=validation_sampler, batch_size=batch_size)
 
         return dataset
 
     def train(self, path, **params):
-        # model = BertForSequenceClassification.from_pretrained("bert-large-cased")
-        config = AlbertConfig(
-            vocab_size=1359,
-            embedding_size=256,
-            hidden_size=768,
-            num_hidden_layers=6,
-            num_attention_heads=12,
-            intermediate_size=3072,
-            hidden_act="gelu",
-            hidden_dropout_prob=0.1,
-            attention_probs_dropout_prob=0.1,
-            max_position_embeddings=512,
-            type_vocab_size=2,
-            initializer_range=0.02,
-            layer_norm_eps=1e-12,
-        )
-        model = AlbertForMaskedLM(config=config)
+        model = TFBertModel.from_pretrained("D:/python/myLibs/bert-base-cased")
 
-        training_args = TrainingArguments(
+        training_args = TFTrainingArguments(
             output_dir='./models/bert4tc/'+args.task_type,  # output directory
             num_train_epochs=3,  # total # of training epochs
             per_device_train_batch_size=1,  # batch size per device during training
@@ -73,18 +83,15 @@ class PreTrainer(Trainer):
             # logging_dir='./logs',  # directory for storing logs
         )
 
-        data_collator = DataCollatorForLanguageModeling(
-            tokenizer=self.tokenizer, mlm=True, mlm_probability=0.15
-        )
-        trainer = Trainer(
+        trainer = TFTrainer(
             model=model,  # the instantiated 🤗 Transformers model to be trained
             args=training_args,  # training arguments, defined above
-            data_collator=data_collator,
             train_dataset=self._generate_ds(),  # tensorflow_datasets training dataset
             # eval_dataset=tfds_test_dataset  # tensorflow_datasets evaluation dataset
         )
 
         trainer.train()
+        trainer.save_model()
 
 
 if __name__ == '__main__':

@@ -11,3 +11,4 @@ models/output
 models/wordvectors/fasttext
 models/wordvectors/word2vec
 *.vec
+*.v2
