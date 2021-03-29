@@ -10,5 +10,8 @@ models/multi_cased_L-12_H-768_A-12
 models/output
 models/wordvectors/fasttext
 models/wordvectors/word2vec
+models/bert-large-cased
+models/bert4tc
+models/bert4tc_tf
 *.vec
 *.v2

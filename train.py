@@ -1,9 +1,11 @@
-from kashgari.embeddings import TransformerEmbedding
+from kashgari.embeddings import TransformerEmbedding, BertEmbedding
+from kashgari.processors import SequenceProcessor
 from kashgari.embeddings import WordEmbedding
 from kashgari.tokenizers import BertTokenizer
 from kashgari.tasks.classification import CNN_Attention_Model, BiLSTM_Model
 from models.BiLSTM_Conv_Att import BiLSTM_Conv_Att_Model
 from models.RNN_Att import RNN_Att_Model
+import json
 
 from sklearn.model_selection import train_test_split
 from utils import *
@@ -19,14 +21,15 @@ class Trainer:
             self.checkpoint_path = _args.model_folder + '/bert_model.ckpt'
             self.config_path = _args.model_folder + '/bert_config.json'
             self.vocab_path = _args.model_folder + '/vocab.txt'
+        self.model_folder = _args.model_folder
         self.task_type = _args.task_type
 
     def _embedding(self):
         if self.model_type == "w2v":
             embedding = WordEmbedding(self.vector_path)
         else:
-            embedding = TransformerEmbedding(self.vocab_path, self.config_path, self.checkpoint_path,
-                                             bert_type=self.model_type)
+            embedding = TransformerEmbedding(self.vocab_path, self.config_path,  self.checkpoint_path,
+                                             model_type=self.model_type)
 
         return embedding
 
@@ -67,6 +70,8 @@ class Trainer:
         x_interface = load_test_data("./datasets/"+self.task_type+"/test.tsv")
         y_interface = model.predict(x_interface, batch_size=64, truncating=True, predict_kwargs=None)
         self._generate(y_interface)
+
+        return model
 
     @staticmethod
     def evaluate(model, x_test, y_test):

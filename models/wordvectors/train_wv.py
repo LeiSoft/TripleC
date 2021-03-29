@@ -8,7 +8,7 @@ def train(args):
     tool = args.model
     assert tool == 'fasttext' or tool == 'word2vec', 'you can choose: [word2vec, fasttext]'
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
-    sentences = word2vec.LineSentence(u'../../datasets/corpora.txt')
+    sentences = word2vec.LineSentence(u'../../datasets/corpora_add.txt')
     if tool == 'fasttext':
         _model = FastText(sentences, size=args.D, iter=30, min_count=2, word_ngrams=1)
     else:
