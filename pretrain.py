@@ -12,28 +12,29 @@ class PreTrainer:
 
     def train(self):
         tokenizer = BertTokenizerFast.from_pretrained(self.model_path, max_len=256)
+
         model = BertForMaskedLM.from_pretrained(self.model_path)
         dataset = LineByLineTextDataset(
             tokenizer=tokenizer,
-            file_path="datasets/corpora.txt",
+            file_path="datasets/corpora_add.txt",
             block_size=128,
         )
         data_collator = DataCollatorForLanguageModeling(
-            tokenizer=tokenizer, mlm=True, mlm_probability=0.10
+            tokenizer=tokenizer, mlm=True, mlm_probability=0.15
         )
         training_args = TrainingArguments(
             output_dir="./models/bert4tc",
             overwrite_output_dir=True,
-            num_train_epochs=10,
-            per_device_train_batch_size=8,
-            save_steps=100,
+            num_train_epochs=3,
+            per_device_train_batch_size=32,
+            save_steps=500,
             save_total_limit=5,
             prediction_loss_only=True,
             do_train=True,
             do_eval=True,
             load_best_model_at_end=True,
-            # eval_steps=100,
-            learning_rate=2e-5,
+            eval_steps=500,
+            learning_rate=1e-4,
         )
 
         trainer = Trainer(
@@ -51,6 +52,16 @@ class PreTrainer:
         model = BertForMaskedLM.from_pretrained(pt_model)
         convert_pytorch_checkpoint_to_tf2(model=model, ckpt_dir="./models/bert4tc_tf", model_name="bert_model")
         os.system("cp "+pt_model+"/config.json ./models/bert4tc_tf/bert_config.json")
+
+    @staticmethod
+    def get_add_vocab(path):
+        vocab = {}
+        with open(path, 'r', encoding='utf-8') as f:
+            for line in f.readlines():
+                for word in line.strip(" "):
+                    vocab[word] = vocab.get(word, 0) + 1
+        res = sorted(vocab.items(), key=lambda x: x[1], reverse=True)[:1]
+        return [it[0] for it in res]
 
 
 if __name__ == '__main__':

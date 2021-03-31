@@ -13,5 +13,6 @@ models/wordvectors/word2vec
 models/bert-large-cased
 models/bert4tc
 models/bert4tc_tf
+datasets/fulltext
 *.vec
 *.v2

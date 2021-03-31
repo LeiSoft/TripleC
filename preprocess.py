@@ -1,6 +1,7 @@
 import pandas as pd
 import re
 import en_core_web_lg
+from math import floor, ceil
 
 tagger = en_core_web_lg.load()
 
@@ -10,18 +11,46 @@ def generate_corpus(path):
     train = pd.read_csv(path + "SDP_train.csv", sep=',', header=0)
     test = pd.read_csv(path + "SDP_test.csv", sep=',', header=0)
     test_corpora = [
-        clean_sentence(test.loc[i, 'citation_context'].replace("#AUTHOR_TAG", "CITATION")
+        clean_sentence(test.loc[i, 'citation_context'].replace("#AUTHOR_TAG", test.loc[i, 'cited_title'])
                        + test.loc[i, 'citing_title'])
         for i in range(len(test))]
     # test_corpora = tagger.pipe([test.loc[i, 'citation_context'] for i in range(len(test))])
     train_corpora = [
-        clean_sentence(train.loc[i, 'citation_context'].replace("#AUTHOR_TAG", "CITATION")
+        clean_sentence(train.loc[i, 'citation_context'].replace("#AUTHOR_TAG", train.loc[i, 'cited_title'])
                        + train.loc[i, 'citing_title'])
         for i in range(len(train))]
+
     corpora = test_corpora + train_corpora
+
     with open("./datasets/corpora.txt", 'w', encoding='utf-8') as f:
         for line in corpora:
-            f.write(line + "\n")
+            text = line.strip().split(" ")
+            block_num = ceil(len(text)/20)
+
+            sep_len = floor(len(text)/block_num)
+            for i in range(block_num):
+                begin = i * sep_len
+                end = (i+1) * sep_len
+                if end > len(text):
+                    end = len(text)
+                f.write(" ".join(text[begin:end]) + "\n")
+    # 增加额外语料
+    with open("./datasets/data.tsv", 'r', encoding='utf-8') as f:
+        for line in f.readlines():
+            corpora.append(line.strip().split("\t")[2])
+
+    with open("./datasets/corpora_add.txt", 'w', encoding='utf-8') as f:
+        for line in corpora:
+            text = line.strip().split(" ")
+            block_num = ceil(len(text)/20)
+
+            sep_len = floor(len(text)/block_num)
+            for i in range(block_num):
+                begin = i * sep_len
+                end = (i+1) * sep_len
+                if end > len(text):
+                    end = len(text)
+                f.write(" ".join(text[begin:end]) + "\n")
 
 
 def formatted(path, label):
@@ -33,7 +62,7 @@ def formatted(path, label):
     data = pd.read_csv(path + "SDP_train.csv", sep=',', header=0)
 
     output = [(
-        clean_sentence(data.loc[i, 'citation_context'].replace("#AUTHOR_TAG", "CITATION")
+        clean_sentence(data.loc[i, 'citation_context'].replace("#AUTHOR_TAG", data.loc[i, 'cited_title'])
                        + data.loc[i, 'citing_title']),
         str(data.loc[i, label])
     )
@@ -76,7 +105,9 @@ def formatted_test(path):
 
 
 def clean_sentence(s: str):
-    return "".join(re.findall('[a-zA-Z ]', s))
+    s = "".join(re.findall('[a-zA-Z :!?]', s))
+    return " ".join([token.text for token in tagger(s)])
+    # return "".join(re.findall('[a-zA-Z ]', s))
 
 
 formatted("datasets/intent/", 'citation_class_label')

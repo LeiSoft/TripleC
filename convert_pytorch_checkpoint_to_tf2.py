@@ -18,15 +18,13 @@ Convert Huggingface Pytorch checkpoint to Tensorflow checkpoint.
 
 根据pytorch-transformers.convert_pytorch_checkpoint_to_tf修改成适配tensorflow2.*的版本
 
-修改了76行的表达，解决bert4keras无法读取模型的问题
+修改了76行的表达，解决bert4keras无法加载模型的问题
 修改前：return 'bert/{}'.format(name)
 修改后：return '{}'.format(name)
 Edit Credit：@FoVNull
 """
 
 import os
-import argparse
-import torch
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import ops

@@ -22,4 +22,4 @@ if __name__ == '__main__':
     trainer = Trainer(args)
     # test参数为False则不做测试集验证，只进行模型训练
     with tf.device("/gpu:1"):
-        trainer.train("./datasets/"+args.task_type+"/train.tsv", test_size=0.2, validation=True, test=False)
+        trainer.train("./datasets/"+args.task_type+"/train.tsv", test_size=0.2, validation=True, test=True)
