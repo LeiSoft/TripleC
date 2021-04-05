@@ -9,15 +9,6 @@ import logging
 
 logging.basicConfig(level='DEBUG')
 
-# import tensorflow as tf
-# import os
-
-# os.environ['CUDA_VISIBLE_DEVICES'] = "0,1,2,3"
-# config = tf.compat.v1.ConfigProto()
-# config.gpu_options.visible_device_list = '0,1,2,3'
-# config.gpu_options.allow_growth = True
-# session = tf.compat.v1.Session(config=config)
-
 
 class BiLSTM_Conv_Att_Model(ABCClassificationModel):
 
@@ -70,7 +61,7 @@ class BiLSTM_Conv_Att_Model(ABCClassificationModel):
 
         # Define layers for BiLSTM
         layer_stack = [
-            L.Bidirectional(L.LSTM(**config['layer_bilstm1']), name='layer_bilstm1'),
+            L.Bidirectional(L.LSTM(**config['layer_bilstm1'])),
             L.Conv1D(**config['conv_layer1']),
             L.Dropout(**config['layer_dropout'])
         ]

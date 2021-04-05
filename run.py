@@ -13,6 +13,7 @@ if __name__ == '__main__':
                         help="transfer model type, [bert, w2v, albert, nezha, gpt2_ml, t5]")
     parser.add_argument("--task_type", type=str, required=True, default='intent',
                         help="specify attributes for predict [intent/influence]")
+    parser.add_argument("--model", default="BiLSTM_Conv_Att", help="choose model for your task")
 
     args = parser.parse_args()
     assert args.model_type in ['bert', 'w2v', 'albert', 'nezha', 'gpt2_ml', 't5'], + \
@@ -22,4 +23,4 @@ if __name__ == '__main__':
     trainer = Trainer(args)
     # test参数为False则不做测试集验证，只进行模型训练
     with tf.device("/gpu:1"):
-        trainer.train("./datasets/"+args.task_type+"/train.tsv", test_size=0.2, validation=True, test=True)
+        trainer.train("./datasets/"+args.task_type+"/train.tsv", test_size=0.2, validation=True, test=False)

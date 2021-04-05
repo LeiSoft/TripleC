@@ -11,7 +11,7 @@ import logging
 logging.basicConfig(level='DEBUG')
 
 
-class RNN_Att_Model(ABCClassificationModel):
+class SelfAtt(ABCClassificationModel):
 
     @classmethod
     def default_hyper_parameters(cls) -> Dict[str, Dict[str, Any]]:
@@ -26,12 +26,8 @@ class RNN_Att_Model(ABCClassificationModel):
         hard_sigmoid, linear, serialize, deserialize, get}
         """
         return {
-            'layer_RNN1': {
-                'cell': [MinimalRNNCell(64), MinimalRNNCell(64)],
-                'return_sequences': True
-            },
             'layer_dropout': {
-                'rate': 0.2,
+                'rate': 0.5,
                 'name': 'layer_dropout'
             },
             'layer_time_distributed': {},
@@ -52,7 +48,6 @@ class RNN_Att_Model(ABCClassificationModel):
 
         # Define layers for BiLSTM
         layer_stack = [
-            L.RNN(**config['layer_RNN1']),
             L.Dropout(**config['layer_dropout'])
         ]
 

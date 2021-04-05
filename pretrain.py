@@ -16,7 +16,7 @@ class PreTrainer:
         model = BertForMaskedLM.from_pretrained(self.model_path)
         dataset = LineByLineTextDataset(
             tokenizer=tokenizer,
-            file_path="datasets/corpora_add.txt",
+            file_path="datasets/corpora.txt",
             block_size=128,
         )
         data_collator = DataCollatorForLanguageModeling(

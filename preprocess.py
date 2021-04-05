@@ -11,13 +11,13 @@ def generate_corpus(path):
     train = pd.read_csv(path + "SDP_train.csv", sep=',', header=0)
     test = pd.read_csv(path + "SDP_test.csv", sep=',', header=0)
     test_corpora = [
-        clean_sentence(test.loc[i, 'citation_context'].replace("#AUTHOR_TAG", test.loc[i, 'cited_title'])
-                       + test.loc[i, 'citing_title'])
+        clean_sentence(test.loc[i, 'citation_context'].replace("#AUTHOR_TAG", " ")
+                       + test.loc[i, 'cited_title'] + test.loc[i, 'citing_title'])
         for i in range(len(test))]
     # test_corpora = tagger.pipe([test.loc[i, 'citation_context'] for i in range(len(test))])
     train_corpora = [
-        clean_sentence(train.loc[i, 'citation_context'].replace("#AUTHOR_TAG", train.loc[i, 'cited_title'])
-                       + train.loc[i, 'citing_title'])
+        clean_sentence(train.loc[i, 'citation_context'].replace("#AUTHOR_TAG", " ")
+                       + train.loc[i, 'cited_title'] + train.loc[i, 'citing_title'])
         for i in range(len(train))]
 
     corpora = test_corpora + train_corpora
@@ -25,7 +25,7 @@ def generate_corpus(path):
     with open("./datasets/corpora.txt", 'w', encoding='utf-8') as f:
         for line in corpora:
             text = line.strip().split(" ")
-            block_num = ceil(len(text)/20)
+            block_num = ceil(len(text)/30)
 
             sep_len = floor(len(text)/block_num)
             for i in range(block_num):
@@ -42,7 +42,7 @@ def generate_corpus(path):
     with open("./datasets/corpora_add.txt", 'w', encoding='utf-8') as f:
         for line in corpora:
             text = line.strip().split(" ")
-            block_num = ceil(len(text)/20)
+            block_num = ceil(len(text)/30)
 
             sep_len = floor(len(text)/block_num)
             for i in range(block_num):
@@ -62,8 +62,8 @@ def formatted(path, label):
     data = pd.read_csv(path + "SDP_train.csv", sep=',', header=0)
 
     output = [(
-        clean_sentence(data.loc[i, 'citation_context'].replace("#AUTHOR_TAG", data.loc[i, 'cited_title'])
-                       + data.loc[i, 'citing_title']),
+        clean_sentence(data.loc[i, 'citation_context'].replace("#AUTHOR_TAG", " ")
+                       + data.loc[i, 'cited_title'] + data.loc[i, 'citing_title']),
         str(data.loc[i, label])
     )
         for i in range(len(data))]
@@ -86,8 +86,8 @@ def formatted(path, label):
 def formatted_test(path):
     data = pd.read_csv(path + "SDP_test.csv", sep=',', header=0)
 
-    test = [clean_sentence(data.loc[i, 'citation_context'].replace("#AUTHOR_TAG", data.loc[i, 'cited_title'])
-                           + data.loc[i, 'citing_title'])
+    test = [clean_sentence(data.loc[i, 'citation_context'].replace("#AUTHOR_TAG", " ")
+                           + data.loc[i, 'cited_title'] + data.loc[i, 'citing_title'])
             for i in range(len(data))]
     # test = []
     # for i, doc in enumerate(tagger.pipe([clean_sentence(data.loc[i, 'citation_context']) for i in range(len(data))])):

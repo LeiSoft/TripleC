@@ -4,7 +4,6 @@ from kashgari.embeddings import WordEmbedding
 from kashgari.tokenizers import BertTokenizer
 from kashgari.tasks.classification import CNN_Attention_Model, BiLSTM_Model
 from models.BiLSTM_Conv_Att import BiLSTM_Conv_Att_Model
-from models.RNN_Att import RNN_Att_Model
 import json
 
 from sklearn.model_selection import train_test_split
