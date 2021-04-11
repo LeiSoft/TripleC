@@ -1,4 +1,5 @@
 # import spacy
+import json
 
 
 # tagger = spacy.load('en_core_web_lg')
@@ -22,7 +23,7 @@ def load_data(path):
     return x_data, y_data
 
 
-def load_test_data(path):
+def load_non_label_data(path):
     x_data = []
     with open(path, 'r', encoding='utf-8') as f:
         for line in f.readlines():

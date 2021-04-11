@@ -18,9 +18,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
     assert args.model_type in ['bert', 'w2v', 'albert', 'nezha', 'gpt2_ml', 't5'], + \
         "only support [bert, w2v, albert, nezha, gpt2_ml, t5]"
-    assert args.task_type in ['intent', 'influence', 'amazon'], "only support [intent, influence]"
+    assert args.task_type in ['intent', 'influence', 'other'], "only support [intent, influence, other]"
 
     trainer = Trainer(args)
     # test参数为False则不做测试集验证，只进行模型训练
-    with tf.device("/gpu:1"):
+    with tf.device("/gpu:2"):
         trainer.train("./datasets/"+args.task_type+"/train.tsv", test_size=0.2, validation=True, test=False)
+        # trainer.train_scicite("./datasets/scicite/")

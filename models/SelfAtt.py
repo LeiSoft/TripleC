@@ -40,21 +40,13 @@ class SelfAtt(ABCClassificationModel):
         """
         build model architectural
 
-        RNN + Attention
+        Attention
         """
         output_dim = self.label_processor.vocab_size
         config = self.hyper_parameters
         embed_model = self.embedding.embed_model
 
-        # Define layers for BiLSTM
-        layer_stack = [
-            L.Dropout(**config['layer_dropout'])
-        ]
-
-        # tensor flow in BiLSTM {tensor:=layer(tensor)}
         tensor = embed_model.output
-        for layer in layer_stack:
-            tensor = layer(tensor)
 
         # define attention layer
         query_value_attention_seq = L.Attention()([tensor, tensor])
@@ -62,10 +54,10 @@ class SelfAtt(ABCClassificationModel):
         query_encoding = L.GlobalMaxPool1D()(tensor)
         query_value_attention = L.GlobalMaxPool1D()(query_value_attention_seq)
 
-        input_layer = L.Concatenate(axis=-1)([query_encoding, query_value_attention])
+        tensor = L.Concatenate(axis=-1)([query_encoding, query_value_attention])
 
         # output tensor
-        tensor = L.Dense(output_dim, **config['layer_output'])(input_layer)
+        tensor = L.Dense(output_dim, **config['layer_output'])(tensor)
 
         # Init model
         self.tf_model = keras.Model(embed_model.inputs, tensor)

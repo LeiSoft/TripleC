@@ -3,7 +3,8 @@ from kashgari.processors import SequenceProcessor
 from kashgari.embeddings import WordEmbedding
 from kashgari.tokenizers import BertTokenizer
 from kashgari.tasks.classification import CNN_Attention_Model, BiLSTM_Model
-from models.BiLSTM_Conv_Att import BiLSTM_Conv_Att_Model
+from models.RCNN_Att import RCNN_Att_Model
+from models.SelfAtt import SelfAtt
 import json
 
 from sklearn.model_selection import train_test_split
@@ -53,7 +54,7 @@ class Trainer:
             )
         else:
             x_train, y_train = x_data, y_data
-        model = BiLSTM_Conv_Att_Model(embedding)
+        model = RCNN_Att_Model(embedding)
 
         if params["validation"]:
             x_train, x_vali, y_train, y_vali = train_test_split(
@@ -66,11 +67,23 @@ class Trainer:
         if params["test"]:
             self.evaluate(model, x_test, y_test)
 
-        x_interface = load_test_data("./datasets/"+self.task_type+"/test.tsv")
+        x_interface = load_non_label_data("./datasets/"+self.task_type+"/test.tsv")
         y_interface = model.predict(x_interface, batch_size=64, truncating=True, predict_kwargs=None)
         self._generate(y_interface)
 
         return model
+
+    def train_scicite(self, path):
+        x_train, y_train = load_data(path+"train.tsv")
+        x_vali, y_vali = load_data(path+"dev.tsv")
+        x_test, y_test = load_data(path+"test.tsv")
+
+        embedding = self._embedding()
+
+        model = BiLSTM_Conv_Att_Model(embedding)
+        model.fit(x_train, y_train, x_vali, y_vali, batch_size=64, epochs=20, callbacks=None, fit_kwargs=None)
+
+        self.evaluate(model, x_test, y_test)
 
     @staticmethod
     def evaluate(model, x_test, y_test):
@@ -81,8 +94,10 @@ class Trainer:
     def _generate(self, y):
         if self.task_type == "intent":
             head = 'unique_id,citation_class_label'
-        else:
+        elif self.task_type == "influence":
             head = 'unique_id,citation_influence_label'
+        else:
+            head = 'id,label'
 
         with open("./datasets/"+self.task_type+"_prediction.csv", 'w', encoding='utf-8') as f:
             f.write(head+"\n")

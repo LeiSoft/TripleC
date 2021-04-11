@@ -2,6 +2,7 @@ import pandas as pd
 import re
 import en_core_web_lg
 from math import floor, ceil
+import json
 
 tagger = en_core_web_lg.load()
 
@@ -25,7 +26,7 @@ def generate_corpus(path):
     with open("./datasets/corpora.txt", 'w', encoding='utf-8') as f:
         for line in corpora:
             text = line.strip().split(" ")
-            block_num = ceil(len(text)/30)
+            block_num = ceil(len(text)/500)
 
             sep_len = floor(len(text)/block_num)
             for i in range(block_num):
@@ -35,14 +36,18 @@ def generate_corpus(path):
                     end = len(text)
                 f.write(" ".join(text[begin:end]) + "\n")
     # 增加额外语料
-    with open("./datasets/data.tsv", 'r', encoding='utf-8') as f:
+    # with open("./datasets/data.tsv", 'r', encoding='utf-8') as f:
+    #     for line in f.readlines():
+    #         corpora.append(clean_sentence(line.strip().split("\t")[2]))
+
+    with open("./datasets/scicite/train.jsonl", 'r', encoding="utf-8") as f:
         for line in f.readlines():
-            corpora.append(line.strip().split("\t")[2])
+            corpora.append(clean_sentence(json.loads(line.strip())["string"]))
 
     with open("./datasets/corpora_add.txt", 'w', encoding='utf-8') as f:
         for line in corpora:
             text = line.strip().split(" ")
-            block_num = ceil(len(text)/30)
+            block_num = ceil(len(text)/500)
 
             sep_len = floor(len(text)/block_num)
             for i in range(block_num):
@@ -104,18 +109,40 @@ def formatted_test(path):
             f.write(line + "\n")
 
 
+def process_scicite(path, type_):
+    label = {'result': 0, 'background': 1, 'method': 2}
+    stat = {'result': 0, 'background': 0, 'method': 0}
+    data = []
+    with open(path+type_+".jsonl", 'r', encoding='utf-8') as f:
+        for line in f.readlines():
+            dic = json.loads(line.strip())
+            content = clean_sentence(dic["string"])
+            data.append((content, label[dic["label"]]))
+            stat[dic["label"]] = stat.get(dic["label"], 0) + 1
+    print(len(data))
+    print(stat)
+
+    with open(path+type_+".tsv", 'w', encoding='utf-8') as f:
+        for d in data:
+            f.write(d[0]+"\t"+str(d[1])+"\n")
+
+
 def clean_sentence(s: str):
     s = "".join(re.findall('[a-zA-Z :!?]', s))
     return " ".join([token.text for token in tagger(s)])
     # return "".join(re.findall('[a-zA-Z ]', s))
 
 
-formatted("datasets/intent/", 'citation_class_label')
-formatted("datasets/influence/", 'citation_influence_label')
-formatted_test("datasets/intent/")
-formatted_test("datasets/influence/")
+# formatted("datasets/intent/", 'citation_class_label')
+# formatted("datasets/influence/", 'citation_influence_label')
+# formatted_test("datasets/intent/")
+# formatted_test("datasets/influence/")
+# process_scicite("./datasets/scicite/", "train")
+# process_scicite("./datasets/scicite/", "dev")
+# process_scicite("./datasets/scicite/", "test")
 
-generate_corpus("datasets/intent/")
+# generate_corpus("datasets/intent/")
+
 # x = []
 # y = []
 # with open("./datasets/practice_data/3c_data.tsv", 'r', encoding='utf-8') as f:
