@@ -3,9 +3,12 @@ from typing import Dict, Any
 from tensorflow import keras
 import tensorflow as tf
 import numpy as np
+from features.extractor import Extractor
+from features.features_layers import FeaturesFusion
 
-from kashgari.tasks.classification.abc_model import ABCClassificationModel
+from kashgari.tasks.classification.abc_feature_model import ABCClassificationModel
 from kashgari.layers import L
+
 
 import logging
 
@@ -13,6 +16,11 @@ logging.basicConfig(level='DEBUG')
 
 
 class RCNN_Att_Model(ABCClassificationModel):
+    def __init__(self, embedding, **params):
+        super().__init__(embedding)
+        # self.path = params["path"]
+        # self.label = params["label"]
+        self.feature_D = params["feature_D"]
 
     @classmethod
     def default_hyper_parameters(cls) -> Dict[str, Dict[str, Any]]:
@@ -57,6 +65,8 @@ class RCNN_Att_Model(ABCClassificationModel):
 
         BiLSTM + Convolution + Attention
         """
+        features = keras.Input(shape=(None, self.feature_D), name="features")
+
         output_dim = self.label_processor.vocab_size
         config = self.hyper_parameters
         embed_model = self.embedding.embed_model
@@ -64,22 +74,19 @@ class RCNN_Att_Model(ABCClassificationModel):
         # Define layers for BiLSTM
         layer_stack = [
             L.Bidirectional(L.LSTM(**config['layer_bilstm1'])),
-            L.Conv1D(**config['conv_layer1']),
+            # L.Conv1D(**config['conv_layer1']),
             # L.Dropout(**config['layer_dropout'])
         ]
 
         # tensor flow in Layers {tensor:=layer(tensor)}
         tensor = embed_model.output
-
         for layer in layer_stack:
             tensor = layer(tensor)
 
         # extend features
-        features = np.arange(5, dtype=np.float32)
-        x = tf.Variable(np.array([[features]]))
-        tensor = L.Concatenate(axis=-1)([x, tensor])
-        print(tensor)
-        exit(99)
+        tensor = L.Concatenate(axis=-1)([features, tensor])
+        tensor = L.Conv1D(**config['conv_layer1'])(tensor)
+
         '''
         define attention layer
         as a nlp-rookie im wondering whether this is a right way XD
@@ -87,7 +94,7 @@ class RCNN_Att_Model(ABCClassificationModel):
         # query_value_attention_seq = L.Attention()([tensor, tensor])
         query_value_attention_seq = L.MultiHeadAttention(
             num_heads=2, key_dim=2, dropout=0.5
-        )(tensor, tensor)
+        )(tensor, features)
 
         query_encoding = L.GlobalMaxPool1D()(tensor)
         query_value_attention = L.GlobalMaxPool1D()(query_value_attention_seq)
@@ -102,4 +109,4 @@ class RCNN_Att_Model(ABCClassificationModel):
         # tensor = self._activation_layer()(tensor)
 
         # Init model
-        self.tf_model = keras.Model(embed_model.inputs, tensor)
+        self.tf_model = keras.Model(inputs=[embed_model.inputs, features], outputs=tensor)

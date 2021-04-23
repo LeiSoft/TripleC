@@ -1,13 +1,13 @@
+from typing import List, Optional, Union
 from kashgari.embeddings import TransformerEmbedding, BertEmbedding
-from kashgari.processors import SequenceProcessor
 from kashgari.embeddings import WordEmbedding
 from kashgari.tokenizers import BertTokenizer
 from kashgari.tasks.classification import CNN_Attention_Model, BiLSTM_Model
+from sklearn.model_selection import train_test_split
+
 from models.RCNN_Att import RCNN_Att_Model
 from models.SelfAtt import SelfAtt
-import json
-
-from sklearn.model_selection import train_test_split
+from features.extractor import Extractor
 from utils import *
 
 
@@ -23,6 +23,8 @@ class Trainer:
             self.vocab_path = _args.model_folder + '/vocab.txt'
         self.model_folder = _args.model_folder
         self.task_type = _args.task_type
+        self.multi_paths = _args.multi_label
+        self.extractor = Extractor(True)
 
     def _embedding(self):
         if self.model_type == "w2v":
@@ -38,66 +40,104 @@ class Trainer:
 
         if self.model_type != 'w2v':
             tokenizer = BertTokenizer.load_from_vocab_file(self.vocab_path)
-            sentences_tokenized = [tokenizer.tokenize(" ".join(seq)) for seq in _x]
+            sentences_tokenized = [
+                (seq[0], tokenizer.tokenize(" ".join(seq[1])))
+                for seq in _x]
 
         return sentences_tokenized
 
-    def train(self, path, **params):
+    def train_3c(self, path, **params):
         x_data, y_data = load_data(path)
+        # pointless, just for ignoring the warning
+        x_test, y_test = None, None
+
+        multi_label = False
+        if isinstance(self.multi_paths, List):
+            y_data = add_label(y_data, self.multi_paths)
+            multi_label = True
 
         embedding = self._embedding()
+        model = RCNN_Att_Model(embedding, multi_label=multi_label, feature_D=2)
+
         x_data = self._tokenizing(x_data)
 
-        if params["test"]:
+        if params["test_size"]:
             x_train, x_test, y_train, y_test = train_test_split(
-                x_data, y_data, test_size=params["test_size"], random_state=3
+                x_data, y_data, test_size=params["test_size"], random_state=810
             )
         else:
             x_train, y_train = x_data, y_data
-        model = RCNN_Att_Model(embedding)
 
-        if params["validation"]:
+        if params["vali_size"]:
             x_train, x_vali, y_train, y_vali = train_test_split(
-                x_train, y_train, test_size=params["test_size"]
+                x_train, y_train, test_size=params["vali_size"], random_state=810
             )
-            model.fit(x_train, y_train, x_vali, y_vali, batch_size=64, epochs=20, callbacks=None, fit_kwargs=None)
-        else:
-            model.fit(x_train, y_train, batch_size=64, epochs=20, callbacks=None, fit_kwargs=None)
+            train_features = self.extractor.build_features(x_train, task=self.task_type)
+            vali_features = self.extractor.build_features(x_vali, task=self.task_type)
 
-        if params["test"]:
-            self.evaluate(model, x_test, y_test)
+            x_train_pure = [items[1] for items in x_train]
+            x_vali_pure = [items[1] for items in x_vali]
+
+            model.fit((x_train_pure, train_features), y_train,
+                      (x_vali_pure, vali_features), y_vali,
+                      batch_size=64, epochs=20, callbacks=None, fit_kwargs=None)
+        else:
+            train_features = self.extractor.build_features(x_train, task=self.task_type)
+            x_train_pure = [items[1] for items in x_train]
+
+            model.fit((x_train_pure, train_features), y_train,
+                      batch_size=64, epochs=20, callbacks=None, fit_kwargs=None)
+
+        if params["test_size"]:
+            assert x_test and y_test, "unexpectable error! test data shouldn't be None, check it out"
+            test_features = self.extractor.build_features(x_test, task=self.task_type)
+
+            x_test_pure = [items[1] for items in x_test]
+            self.evaluate(model, x_test_pure, y_test, test_features)
 
         x_interface = load_non_label_data("./datasets/"+self.task_type+"/test.tsv")
-        y_interface = model.predict(x_interface, batch_size=64, truncating=True, predict_kwargs=None)
+        interface_features = self.extractor.build_features(x_interface, task=self.task_type)
+        x_interface_pure = [items[1] for items in x_interface]
+        y_interface = model.predict((x_interface_pure, interface_features),
+                                    batch_size=64, truncating=True, predict_kwargs=None)
         self._generate(y_interface)
 
         return model
 
-    def train_scicite(self, path):
+    def train_scicite(self, path, **params):
         x_train, y_train = load_data(path+"train.tsv")
         x_vali, y_vali = load_data(path+"dev.tsv")
         x_test, y_test = load_data(path+"test.tsv")
 
+        if params['multi_label']:
+            y_train = get_multi_label(path + "train.jsonl", y_train)
+            y_vali = get_multi_label(path + "dev.jsonl", y_vali)
+            y_test = get_multi_label(path + "test.jsonl", y_test)
+
         embedding = self._embedding()
+        model = RCNN_Att_Model(embedding, multi_label=params['multi_label'], feature_D=2)
 
-        model = BiLSTM_Conv_Att_Model(embedding)
-        model.fit(x_train, y_train, x_vali, y_vali, batch_size=64, epochs=20, callbacks=None, fit_kwargs=None)
+        train_features = self.extractor.build_features(path+"train.tsv")
+        vali_features = self.extractor.build_features(path + "dev.tsv")
 
-        self.evaluate(model, x_test, y_test)
+        model.fit(x_train=(x_train, train_features), y_train=y_train,
+                  x_validate=(x_vali, vali_features), y_validate=y_vali,
+                  batch_size=64, epochs=20, callbacks=None, fit_kwargs=None)
+
+        test_features = self.extractor.build_features(path + "test.tsv")
+        self.evaluate(model, x_test, y_test, test_features)
 
     @staticmethod
-    def evaluate(model, x_test, y_test):
-        report = model.evaluate(x_test, y_test, batch_size=64, digits=4, truncating=False)
+    def evaluate(model, x_test_pure, y_test, features):
+        report = model.evaluate((x_test_pure, features), y_test, batch_size=64, digits=4, truncating=False)
         print(report)
         # model.save("./models/output")
 
     def _generate(self, y):
         if self.task_type == "intent":
             head = 'unique_id,citation_class_label'
-        elif self.task_type == "influence":
-            head = 'unique_id,citation_influence_label'
         else:
-            head = 'id,label'
+            head = 'unique_id,citation_influence_label'
 
         with open("./datasets/"+self.task_type+"_prediction.csv", 'w', encoding='utf-8') as f:
             f.write(head+"\n")

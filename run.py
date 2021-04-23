@@ -12,16 +12,21 @@ if __name__ == '__main__':
     parser.add_argument("--model_type", type=str, default='bert',
                         help="transfer model type, [bert, w2v, albert, nezha, gpt2_ml, t5]")
     parser.add_argument("--task_type", type=str, required=True, default='intent',
-                        help="specify attributes for predict [intent/influence]")
+                        help="specify attributes for predict [intent/influence/scite]")
     parser.add_argument("--model", default="BiLSTM_Conv_Att", help="choose model for your task")
+    # whether need multi_label for input
+    parser.add_argument("--multi_label", default=None,
+                        help="None or List[str], other type of input will be thought to be None")
 
     args = parser.parse_args()
     assert args.model_type in ['bert', 'w2v', 'albert', 'nezha', 'gpt2_ml', 't5'], + \
         "only support [bert, w2v, albert, nezha, gpt2_ml, t5]"
-    assert args.task_type in ['intent', 'influence', 'other'], "only support [intent, influence, other]"
+    assert args.task_type in ['intent', 'influence', 'scite'], "only support [intent, influence, scite]"
 
     trainer = Trainer(args)
     # test参数为False则不做测试集验证，只进行模型训练
     with tf.device("/gpu:2"):
-        trainer.train("./datasets/"+args.task_type+"/train.tsv", test_size=0.2, validation=True, test=False)
-        # trainer.train_scicite("./datasets/scicite/")
+        if args.task_type == "scite":
+            trainer.train_scicite("./datasets/scicite/", multi_label=True)
+        else:
+            trainer.train_3c("./datasets/" + args.task_type + "/train.tsv", vali_size=0.1, test_size=None)

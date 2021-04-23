@@ -20,12 +20,12 @@ class PreTrainer:
             block_size=128,
         )
         data_collator = DataCollatorForLanguageModeling(
-            tokenizer=tokenizer, mlm=True, mlm_probability=0.20
+            tokenizer=tokenizer, mlm=True, mlm_probability=0.15
         )
         training_args = TrainingArguments(
             output_dir="./models/bert4tc",
             overwrite_output_dir=True,
-            num_train_epochs=10,
+            num_train_epochs=5,
             per_device_train_batch_size=32,
             save_steps=500,
             save_total_limit=5,
