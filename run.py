@@ -27,6 +27,9 @@ if __name__ == '__main__':
     # test参数为False则不做测试集验证，只进行模型训练
     with tf.device("/gpu:2"):
         if args.task_type == "scite":
-            trainer.train_scicite("./datasets/scicite/", multi_label=True)
+            '''
+            task_num为参与训练的任务个数
+            '''
+            trainer.train_scicite("./datasets/scicite/", task_num=2)
         else:
             trainer.train_3c("./datasets/" + args.task_type + "/train.tsv", vali_size=0.1, test_size=None)

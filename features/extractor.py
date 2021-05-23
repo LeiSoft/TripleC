@@ -70,6 +70,9 @@ class Extractor:
         return features_3c
 
     @staticmethod
+    def _get_scicite(path):
+        pass
+    @staticmethod
     def _tfidf(sentences):
         tk = tf.keras.preprocessing.text.Tokenizer()
         tk.fit_on_texts(sentences)

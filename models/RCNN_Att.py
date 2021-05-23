@@ -2,13 +2,13 @@ from typing import Dict, Any
 
 from tensorflow import keras
 import tensorflow as tf
+from tensorflow.keras.utils import plot_model
 import numpy as np
 from features.extractor import Extractor
 from features.features_layers import FeaturesFusion
 
 from kashgari.tasks.classification.abc_feature_model import ABCClassificationModel
 from kashgari.layers import L
-
 
 import logging
 
@@ -17,7 +17,7 @@ logging.basicConfig(level='DEBUG')
 
 class RCNN_Att_Model(ABCClassificationModel):
     def __init__(self, embedding, **params):
-        super().__init__(embedding)
+        super().__init__(embedding, task_num=params['task_num'])
         # self.path = params["path"]
         # self.label = params["label"]
         self.feature_D = params["feature_D"]
@@ -36,7 +36,7 @@ class RCNN_Att_Model(ABCClassificationModel):
         """
         return {
             'layer_bilstm1': {
-                'units': 256,
+                'units': 128,
                 'return_sequences': True
             },
             'layer_dropout': {
@@ -48,14 +48,14 @@ class RCNN_Att_Model(ABCClassificationModel):
                 'name': 'layer_dropout_output'
             },
             'layer_time_distributed': {},
-            'layer_output': {
-                'activation': 'softmax'
-            },
             'conv_layer1': {
-                'filters': 128,
+                'filters': 64,
                 'kernel_size': 4,
                 'padding': 'valid',
                 'activation': 'relu'
+            },
+            'layer_output1': {
+                'activation': 'softmax'
             },
         }
 
@@ -66,8 +66,10 @@ class RCNN_Att_Model(ABCClassificationModel):
         BiLSTM + Convolution + Attention
         """
         features = keras.Input(shape=(None, self.feature_D), name="features")
-
-        output_dim = self.label_processor.vocab_size
+        if self.task_num == 1:
+            output_dim = self.label_processor.vocab_size
+        else:
+            output_dims = [lp.vocab_size for lp in self.label_processor]
         config = self.hyper_parameters
         embed_model = self.embedding.embed_model
 
@@ -75,7 +77,7 @@ class RCNN_Att_Model(ABCClassificationModel):
         layer_stack = [
             L.Bidirectional(L.LSTM(**config['layer_bilstm1'])),
             # L.Conv1D(**config['conv_layer1']),
-            # L.Dropout(**config['layer_dropout'])
+            L.Dropout(**config['layer_dropout'])
         ]
 
         # tensor flow in Layers {tensor:=layer(tensor)}
@@ -103,10 +105,16 @@ class RCNN_Att_Model(ABCClassificationModel):
 
         # output tensor
         input_layer = L.Dropout(**config['layer_dropout_output'])(input_layer)
-        tensor = L.Dense(output_dim, **config['layer_output'])(input_layer)
+        if self.task_num == 1:
+            tensor = L.Dense(output_dim, activation='sigmoid', name="output0")(input_layer)
+            self.tf_model = keras.Model(inputs=[embed_model.inputs, features], outputs=tensor)
+        else:
+            output_tensor = [L.Dense(output_dims[i], activation='sigmoid', name="output" + str(i))(input_layer)
+                             for i in range(self.task_num)]
 
-        # use this activation layer as final activation to support multi-label classification
-        # tensor = self._activation_layer()(tensor)
+            # use this activation layer as final activation to support multi-label classification
+            # tensor = self._activation_layer()(tensor)
 
-        # Init model
-        self.tf_model = keras.Model(inputs=[embed_model.inputs, features], outputs=tensor)
+            # Init model
+            self.tf_model = keras.Model(inputs=[embed_model.inputs, features], outputs=output_tensor)
+            plot_model(self.tf_model, to_file="../reference/model.png")

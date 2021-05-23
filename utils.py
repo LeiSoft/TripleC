@@ -51,12 +51,12 @@ def get_multi_label(path, y):
     with open(path, 'r', encoding='utf-8') as f:
         for i, line in enumerate(f.readlines()):
             influence = json.loads(line.strip())['isKeyCitation']
-
+            seq_pos = json.loads(line.strip())['excerpt_index']
             if influence:
-                output.append([y[i], max_num+2])
+                output.append([y[i], 'I'])
             else:
-                output.append([y[i], max_num+1])
-    return y
+                output.append([y[i], 'N'])
+    return output
 
 
 def add_label(_y, multi_task_path: List):

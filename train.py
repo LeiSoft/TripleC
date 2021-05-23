@@ -15,8 +15,8 @@ class Trainer:
     def __init__(self, _args):
         self.model_type = _args.model_type
         if _args.model_type == "w2v":
-            self.vocab_path = _args.model_folder+"/vocab.txt"
-            self.vector_path = _args.model_folder+"/3C.vec"
+            self.vocab_path = _args.model_folder + "/vocab.txt"
+            self.vector_path = _args.model_folder + "/3C.vec"
         else:
             self.checkpoint_path = _args.model_folder + '/bert_model.ckpt'
             self.config_path = _args.model_folder + '/bert_config.json'
@@ -30,7 +30,7 @@ class Trainer:
         if self.model_type == "w2v":
             embedding = WordEmbedding(self.vector_path)
         else:
-            embedding = TransformerEmbedding(self.vocab_path, self.config_path,  self.checkpoint_path,
+            embedding = TransformerEmbedding(self.vocab_path, self.config_path, self.checkpoint_path,
                                              model_type=self.model_type)
 
         return embedding
@@ -70,7 +70,7 @@ class Trainer:
 
         if params["vali_size"]:
             x_train, x_vali, y_train, y_vali = train_test_split(
-                x_train, y_train, test_size=params["vali_size"], random_state=810
+                x_train, y_train, test_size=params["vali_size"], random_state=893
             )
             train_features = self.extractor.build_features(x_train, task=self.task_type)
             vali_features = self.extractor.build_features(x_vali, task=self.task_type)
@@ -80,13 +80,13 @@ class Trainer:
 
             model.fit((x_train_pure, train_features), y_train,
                       (x_vali_pure, vali_features), y_vali,
-                      batch_size=64, epochs=20, callbacks=None, fit_kwargs=None)
+                      batch_size=64, epochs=15, callbacks=None, fit_kwargs=None)
         else:
             train_features = self.extractor.build_features(x_train, task=self.task_type)
             x_train_pure = [items[1] for items in x_train]
 
             model.fit((x_train_pure, train_features), y_train,
-                      batch_size=64, epochs=20, callbacks=None, fit_kwargs=None)
+                      batch_size=64, epochs=25, callbacks=None, fit_kwargs=None)
 
         if params["test_size"]:
             assert x_test and y_test, "unexpectable error! test data shouldn't be None, check it out"
@@ -95,7 +95,7 @@ class Trainer:
             x_test_pure = [items[1] for items in x_test]
             self.evaluate(model, x_test_pure, y_test, test_features)
 
-        x_interface = load_non_label_data("./datasets/"+self.task_type+"/test.tsv")
+        x_interface = load_non_label_data("./datasets/" + self.task_type + "/test.tsv")
         interface_features = self.extractor.build_features(x_interface, task=self.task_type)
         x_interface_pure = [items[1] for items in x_interface]
         y_interface = model.predict((x_interface_pure, interface_features),
@@ -105,19 +105,19 @@ class Trainer:
         return model
 
     def train_scicite(self, path, **params):
-        x_train, y_train = load_data(path+"train.tsv")
-        x_vali, y_vali = load_data(path+"dev.tsv")
-        x_test, y_test = load_data(path+"test.tsv")
+        x_train, y_train = load_data(path + "train.tsv")
+        x_vali, y_vali = load_data(path + "dev.tsv")
+        x_test, y_test = load_data(path + "test.tsv")
 
-        if params['multi_label']:
+        if params['task_num'] > 1:
             y_train = get_multi_label(path + "train.jsonl", y_train)
             y_vali = get_multi_label(path + "dev.jsonl", y_vali)
             y_test = get_multi_label(path + "test.jsonl", y_test)
 
         embedding = self._embedding()
-        model = RCNN_Att_Model(embedding, multi_label=params['multi_label'], feature_D=2)
+        model = RCNN_Att_Model(embedding, feature_D=2, task_num=params['task_num'])
 
-        train_features = self.extractor.build_features(path+"train.tsv")
+        train_features = self.extractor.build_features(path + "train.tsv")
         vali_features = self.extractor.build_features(path + "dev.tsv")
 
         model.fit(x_train=(x_train, train_features), y_train=y_train,
@@ -129,8 +129,12 @@ class Trainer:
 
     @staticmethod
     def evaluate(model, x_test_pure, y_test, features):
-        report = model.evaluate((x_test_pure, features), y_test, batch_size=64, digits=4, truncating=False)
-        print(report)
+        # y_test转置，便于model.evaluate处理多任务输出
+        y_test = list(map(lambda x: list(x), zip(*y_test)))
+        reports = model.evaluate((x_test_pure, features), y_test, batch_size=64, digits=4, truncating=False)
+        # 适配多任务
+        for report in reports:
+            print(report)
         # model.save("./models/output")
 
     def _generate(self, y):
@@ -139,7 +143,7 @@ class Trainer:
         else:
             head = 'unique_id,citation_influence_label'
 
-        with open("./datasets/"+self.task_type+"_prediction.csv", 'w', encoding='utf-8') as f:
-            f.write(head+"\n")
+        with open("./datasets/" + self.task_type + "_prediction.csv", 'w', encoding='utf-8') as f:
+            f.write(head + "\n")
             for index, label in enumerate(y):
-                f.write("CCT"+str(index+1)+","+label+"\n")
+                f.write("CCT" + str(index + 1) + "," + label + "\n")
