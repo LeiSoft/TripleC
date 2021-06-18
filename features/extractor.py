@@ -5,6 +5,9 @@ import networkx as nx
 from tqdm import tqdm
 import pandas as pd
 import pickle
+import regex
+import nltk
+import string
 
 import tensorflow as tf
 from tensorflow.keras.preprocessing.text import Tokenizer
@@ -36,7 +39,7 @@ class Extractor:
                     padding="post", truncating="post"
                 )
 
-        return seq
+        return seq, len(tokenizer.word_counts)
 
     def _build_graph(self, text):
         doc = self.parser(text)
@@ -72,11 +75,33 @@ class Extractor:
     @staticmethod
     def _get_scicite(path):
         pass
+
     @staticmethod
     def _tfidf(sentences):
         tk = tf.keras.preprocessing.text.Tokenizer()
         tk.fit_on_texts(sentences)
         return tk.sequences_to_matrix(tk.texts_to_sequences(sentences), mode='tfidf')
+
+    @staticmethod
+    def get_pos_structure(tokenized):
+        pos_tags = nltk.pos_tag(tokenized)
+        pos = []
+        for pos_tag in pos_tags:
+            if pos_tag[0] == 'REFERENCE':
+                pos.append(pos_tag[0])
+            else:
+                pos.append(pos_tag[1])
+        return ' '.join([tag for tag in pos if tag not in string.punctuation])
+
+    @staticmethod
+    def find_pos_patterns(pos_sentence):
+        pattern_0 = regex.compile('^.*REFERENCE VB[DPZN].*$').match(pos_sentence) is not None
+        pattern_1 = regex.compile('^.*VB[DPZ] VB[GN].*$').match(pos_sentence) is not None
+        pattern_2 = regex.compile('^.*VB[DGPZN]? (RB[RS]? )*VBN.*$').match(pos_sentence) is not None
+        pattern_3 = regex.compile('^.*MD (RB[RS]? )*VB (RB[RS]? )*VBN.*$').match(pos_sentence) is not None
+        pattern_4 = regex.compile('^(RB[RS]? )*PRP (RB[RS]? )*V.*$').match(pos_sentence) is not None
+        pattern_5 = regex.compile('^.*VBG (NNP )*(CC )*(NNP ).*$').match(pos_sentence) is not None
+        return [pattern_0, pattern_1, pattern_2, pattern_3, pattern_4, pattern_5]
 
     def build_features(self, inputs: Union[str, List], **config):
         """
@@ -89,24 +114,28 @@ class Extractor:
             else:
                 context = load_non_label_data(inputs)
         else:
-            context = [items[1] for items in inputs]
+            context = inputs
             # features_info = self._get_3c(config["task"], [items[0] for items in inputs])
-
-        pos_seq = self._build_pos_seq(context)
+        
+        pos_seq, pos_num = self._build_pos_seq(context)
         tfidf_matrix = self._tfidf(context)
 
         features = []
         # sentence id, word id
-        for sid, sentence in enumerate(context):
+        for sid in range(len(pos_seq)):
             seq_features = []
-            for wid, word in enumerate(context[sid]):
-                seq_features.append(
-                    [float(pos_seq[sid][wid]), float(tfidf_matrix[sid][wid])]
-                )
+            # pos_structure = self.get_pos_structure(context[sid])
+            # pos_patterns = [abs(-pp) for pp in self.find_pos_patterns(pos_structure)]
 
+            for wid in range(len((pos_seq[sid]))):
+                onehot = list(tf.keras.utils.to_categorical(
+                    pos_seq[sid][wid], num_classes=17, dtype='float32'))
+                onehot.append(float(tfidf_matrix[sid][wid]))
+                seq_features.append(
+                    onehot
+                )
             features.append(seq_features)
-        # print(features)
-        # exit(99)
+
         return features
 
 

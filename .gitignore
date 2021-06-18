@@ -13,6 +13,13 @@ models/wordvectors/word2vec
 models/bert-large-cased
 models/bert4tc
 models/bert4tc_tf
-datasets/fulltext
+models/scibert_scivocab_uncased
+models/mpnet_base_hf
+
+reference/confusion_matrix.pkl
+reference/test.py
+reference/res_plot.py
+
+datasets/3c-shared/fulltext
 *.vec
 *.v2

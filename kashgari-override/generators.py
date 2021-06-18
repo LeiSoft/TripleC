@@ -128,7 +128,6 @@ class BatchDataSetFeatures(Iterable):
                 y_tensor = [lp.transform([y[i] for y in batch_y],
                                          seq_length=self.seq_length,
                                          max_position=self.max_position) for i, lp in enumerate(self.label_processor)]
-                
                 yield x_tensor, batch_feature, y_tensor
                 batch_x, batch_feature, batch_y = [], [], []
         if batch_x:
@@ -167,7 +166,7 @@ class BatchDataSetFeatures(Iterable):
                     # tf.keras.model.fit()的generator输入
                     y_dic = {}
                     for i in range(self.task_num):
-                       y_dic['output'+str(i)] = batch_y[i]     
+                       y_dic['output'+str(i)] = batch_y[i]
                     yield {"data":batch_x, "features":pad_features}, y_dic
                 if batch_count and i >= batch_count:
                     should_continue = False

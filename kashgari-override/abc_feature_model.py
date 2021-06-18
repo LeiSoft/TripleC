@@ -13,6 +13,7 @@ import numpy as np
 from typing import List, Dict, Any, Union
 
 from sklearn import metrics as sklearn_metrics
+import pickle
 from tensorflow import keras
 import tensorflow as tf
 
@@ -74,7 +75,13 @@ class ABCClassificationModel(ABCTaskModel, ABC):
             label_processor = ClassificationProcessor(multi_label=multi_label)
             # 判断是否为多任务
             if task_num > 1:
-                label_processor = [ClassificationProcessor(multi_label=multi_label) for _ in range(task_num)]
+                '''
+                这里设定multi_label为True是为了将input转为one-hot形式
+                从而使用binary_crossentropy或categorical_crossentropy(效果相较sparse_categorical_crossentropy更佳)
+                实际上并不是为了多标签，而是多任务多输出，每个任务单标签
+                所以evaluate时需要有所改动
+                '''
+                label_processor = [ClassificationProcessor(multi_label=True) for _ in range(task_num)]
 
 
         self.tf_model: keras.Model = None
@@ -116,7 +123,7 @@ class ABCClassificationModel(ABCTaskModel, ABC):
         '''
         这里说明一下 text_processor只处理x_data不处理标签
         多个标签分类任务情况下，由于文本表示为多任务共享，build_vocab_generator只对一组generators进行执行
-        多任务不同的文本表示功能，暂未实现，有需求再说
+        多任务不同的文本表示功能，暂未实现
         '''
         if not self.text_processor.vocab2idx:
             self.text_processor.build_vocab_generator(generators[0])
@@ -178,11 +185,11 @@ class ABCClassificationModel(ABCTaskModel, ABC):
                 loss = {}
                 loss_weights = {}
                 for i in range(self.task_num):
-                    loss['output'+str(i)] = 'sparse_categorical_crossentropy'
+                    loss['output'+str(i)] = 'binary_crossentropy'
                     if i == 0:
                         loss_weights['output'+str(i)] = 1.
                     else:
-                        loss_weights['output'+str(i)] = 0.1
+                        loss_weights['output'+str(i)] = 0.8
         if optimizer is None:
             optimizer = 'adam'
         if metrics is None:
@@ -193,7 +200,6 @@ class ABCClassificationModel(ABCTaskModel, ABC):
                               optimizer=optimizer,
                               metrics=metrics,
                               **kwargs)
-        # tf.keras.utils.plot_model(self.tf_model, to_file="/home/sz/model.png")
 
     def fit(self,
             x_train,
@@ -315,6 +321,7 @@ class ABCClassificationModel(ABCTaskModel, ABC):
                                  steps_per_epoch=len(train_set),
                                  epochs=epochs,
                                  callbacks=callbacks,
+                                 shuffle=False,
                                  **fit_kwargs)
 
     def predict(self,
@@ -363,20 +370,27 @@ class ABCClassificationModel(ABCTaskModel, ABC):
 
             logger.debug(f'predict input shape {np.array(tensor).shape}')
             pred = self.tf_model.predict([tensor, pad_features], batch_size=batch_size, **predict_kwargs)
+
             for i in range(self.task_num):
                 logger.debug(f'predict output{i} shape {pred[i].shape}')
             if self.multi_label:
                 multi_label_binarizer = self.label_processor.multi_label_binarizer  # type: ignore
-                res = multi_label_binarizer.inverse_transform(pred,
+                res = multi_label_binarizer.inverse_transform(pred[0],
                                                               threshold=multi_label_threshold)
             else:
                 res = []
                 for i in range(self.task_num):
                     pred_argmax = pred[i].argmax(-1)
                     lengths = [len(sen) for sen in x_data]
-                    res.append(self.label_processor[i].inverse_transform(pred_argmax,
-                                                                      lengths=lengths))
-                    # logger.debug(f'predict output argmax: {pred_argmax}')
+                    if self.task_num == 1:
+                        res.append(self.label_processor.inverse_transform(pred.argmax(-1),
+                                                                        lengths=lengths))
+                        break
+                    # res.append(self.label_processor[i].inverse_transform(pred_argmax,
+                    #                                                  lengths=lengths))
+
+                    # 因为之前利用了multi_label的label_processor做one-hot输入，详见self.label_processor初始化部分
+                    res.append([self.label_processor[i].idx2vocab[label] for label in pred_argmax])
 
         return res
 
@@ -392,6 +406,7 @@ class ABCClassificationModel(ABCTaskModel, ABC):
                               batch_size=batch_size,
                               truncating=truncating,
                               multi_label_threshold=multi_label_threshold)
+
         if self.multi_label:
             report = multi_label_classification_report(y_data,  # type: ignore
                                                        y_pred,  # type: ignore
@@ -409,10 +424,15 @@ class ABCClassificationModel(ABCTaskModel, ABC):
                                                             y_pred[i],
                                                             output_dict=False,
                                                             digits=digits))
+                print("saving counfusion matrix...")                                            
+                pickle.dump(sklearn_metrics.confusion_matrix(y_data[i], y_pred[i]),
+                             open('./reference/confusion_matrix.pkl', 'wb'))
+                
                 report.append({
                     'detail': original_report,
                     **original_report['weighted avg']
                 })
+
         return report
 
 

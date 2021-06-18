@@ -66,19 +66,17 @@ def generate_corpus(path):
                 f.writelines(open(path+"/"+file, 'r', encoding='utf-8').readlines())
 
 
-def formatted(path, label):
+def formatted(path, _label):
     """
-    :param label: 分类标签名称
+    :param _label: 分类标签名称
     :param path:数据路径
     生成预训练所需要的数据
     """
     data = pd.read_csv(path + "SDP_train.csv", sep=',', header=0)
 
     output = [(data.loc[i, 'unique_id'],
-               clean_sentence(data.loc[i, 'citation_context'].replace("#AUTHOR_TAG", "TAG")
-                              + data.loc[i, 'cited_title'] + data.loc[i, 'citing_title']),
-               str(data.loc[i, label])
-               )
+               clean_sentence(data.loc[i, 'citation_context'].replace("#AUTHOR_TAG", "TAG")),
+               str(data.loc[i, _label]))
               for i in range(len(data))]
     # output = []
     # for i, doc in enumerate(tagger.pipe([clean_sentence(data.loc[i, 'citation_context']) for i in range(len(data))])):
@@ -91,7 +89,7 @@ def formatted(path, label):
     #
     #     output.append((" ".join(seq), str(data.loc[i, label])))
 
-    with open("/".join(path.split("/")[:2]) + "/train.tsv", 'w', encoding='utf-8') as f:
+    with open(path + "/train.tsv", 'w', encoding='utf-8') as f:
         for line in output:
             f.write("\t".join(line) + "\n")
 
@@ -100,8 +98,7 @@ def formatted_test(path):
     data = pd.read_csv(path + "SDP_test.csv", sep=',', header=0)
 
     test = [data.loc[i, 'unique_id'] + "\t" +
-            clean_sentence(data.loc[i, 'citation_context'].replace("#AUTHOR_TAG", "TAG")
-                           + data.loc[i, 'cited_title'] + data.loc[i, 'citing_title'])
+            clean_sentence(data.loc[i, 'citation_context'].replace("#AUTHOR_TAG", "TAG"))
             for i in range(len(data))]
     # test = []
     # for i, doc in enumerate(tagger.pipe([clean_sentence(data.loc[i, 'citation_context']) for i in range(len(data))])):
@@ -113,35 +110,35 @@ def formatted_test(path):
     #             seq.append(token.pos_)
     #
     #     test.append((" ".join(seq)))
-    with open("/".join(path.split("/")[:2]) + "/test.tsv", 'w', encoding='utf-8') as f:
+    with open(path + "/test.tsv", 'w', encoding='utf-8') as f:
         for line in test:
             f.write(line + "\n")
 
 
-def process_scicite(path, type_):
-    label = {'result': '0', 'background': '1', 'method': '2'}
-    stat = {'result': 0, 'background': 0, 'method': 0}
+# support scicite and acl-arc
+def process_sci(path, type_, _label, _stat, **params):
+    context_label = params['context_label']
+    intent_label = params['intent_label']
     data = []
     with open(path + type_ + ".jsonl", 'r', encoding='utf-8') as f:
-        for line in f.readlines():
+        for idx, line in enumerate(f.readlines()):
             dic = json.loads(line.strip())
-            content = clean_sentence(dic["string"])
-            data.append((content, label[dic["label"]]))
-            stat[dic["label"]] = stat.get(dic["label"], 0) + 1
-    print(len(data))
-    print(stat)
+            content = clean_sentence(dic[context_label])
+            data.append((idx, content, _label[dic[intent_label]]))
+            _stat[dic[intent_label]] = _stat.get(dic[intent_label], 0) + 1
+    print(len(data), '\n', _stat)
 
     with open(path + type_ + ".tsv", 'w', encoding='utf-8') as f:
         for d in data:
-            f.write(d[0] + "\t" + str(d[1]) + "\n")
+            f.write(str(d[0]) + "\t" + d[1] + "\t" + str(d[2]) + "\n")
 
 
 def build_3c_feature_dic(type_):
     assert type_ in ["train", "test"]
     if type_ == "train":
-        paths = ["./datasets/intent/SDP_train.csv", "./datasets/influence/SDP_train.csv"]
+        paths = ["./datasets/3c-shared/intent/SDP_train.csv", "./datasets/3c-shared/influence/SDP_train.csv"]
     else:
-        paths = ["./datasets/intent/SDP_test.csv", "./datasets/influence/SDP_test.csv"]
+        paths = ["./datasets/3c-shared/intent/SDP_test.csv", "./datasets/3c-shared/influence/SDP_test.csv"]
     title_set = set()
     author_set = set()
     for path in paths:
@@ -167,13 +164,34 @@ def clean_sentence(s: str):
     # return "".join(re.findall('[a-zA-Z ]', s))
 
 
-# formatted("datasets/intent/", 'citation_class_label')
-# formatted("datasets/influence/", 'citation_influence_label')
-# formatted_test("datasets/intent/")
-# formatted_test("datasets/influence/")
-# process_scicite("./datasets/scicite/", "train")
-# process_scicite("./datasets/scicite/", "dev")
-# process_scicite("./datasets/scicite/", "test")
+formatted("datasets/3c-shared/intent/", 'citation_class_label')
+formatted("datasets/3c-shared/influence/", 'citation_influence_label')
+formatted_test("datasets/3c-shared/intent/")
+formatted_test("datasets/3c-shared/influence/")
+
 # generate_corpus("datasets/intent/")
-for _ in ["test", "train"]:
-    build_3c_feature_dic(_)
+# for _ in ["test", "train"]:
+#     build_3c_feature_dic(_)
+
+# all_ = []
+# for s in ["train", "dev", "test"]:
+#     with open("./datasets/scicite-scibert/"+s+".jsonl", 'r', encoding='utf-8') as f:
+#         for line in f.readlines():
+#             all_.append(line)
+# with open("./datasets/scicite-scibert/all.jsonl", 'w', encoding='utf-8') as f:
+#     for i, dic in enumerate(all_):
+#         f.write(dic)
+
+# label = {'result': '0', 'background': '1', 'method': '2'}
+# stat = {}
+# for key in label.keys():
+#     stat[key] = 0
+# for t in ['train', 'dev', 'test']:
+#     process_sci("./datasets/scicite/", t, label, stat, context_label='string', intent_label='label')
+
+
+# label = {'Background': '0', 'CompareOrContrast': '1', 'Extends': '2', 'Future': '3', 'Motivation': '4', 'Uses': '5'}
+# stat = {}
+# for key in label.keys():
+#     stat[key] = 0
+# process_sci("./datasets/acl-arc/", "all", label, stat, context_label='text', intent_label='intent')

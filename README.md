@@ -1,13 +1,17 @@
-# TripleC
-## Citation Context Classfication
-3C Shared Task (2021) @SDP2021@NAACL2021
+# MFF4TriC
+### Multi-Feature Fusion method for Citation Context Classfication
+@CCIR2021
 
-基于[kashgari](https://github.com/BrikerMan/Kashgari) 实现  
-Features：多特征融合，多分类任务（迁移学习）
+基于[kashgari](https://github.com/BrikerMan/Kashgari) /  [transformers](https://huggingface.co/transformers/)  
+Features：多特征融合，多分类任务（迁移学习），多种预训练语言模型适配
 
 > requirements  
->- tensorflow-gpu 2.*
+>- tensorflow 2.*
 >- kashgari 2.0.1
+
+> 更新日志（from beta v0.2）：  
+> 2021.06.18 (β v0.2)  
+>> 大版本 实现XLNet，MPNet微调，优化
 
 > 项目结构：  
 >- run.py 程序入口
@@ -29,6 +33,9 @@ Features：多特征融合，多分类任务（迁移学习）
 
 ### kashgari源码修改说明  
 满足了向模型输入多个Input的需求  
-完全适配多个分类任务之间的迁移学习，增加了task_num参数，只需要指定任务数量即可  
-将kashgari-override/generators.py 替换 ~/kashgari/generators.py  
-将kashgari-override/abc_feature_model.py 移入 ~/kashigari/tasks/classification/  
+完全适配多个标签的分类任务之间的迁移学习，增加了task_num参数，只需要指定任务数量即可
+>- 将kashgari-override/generators.py 替换 ~/kashgari/generators.py  
+>- 将kashgari-override/abc_feature_model.py 移入 ~/kashigari/tasks/classification/
+>- 将kashgari-override/xlnet_embedding.py mpnet_embedding.py 移入 ~/kashigari/embeddings/  
+>- 将kashgari-override/\_\_init__.py 替换 ~/kashigari/embeddings/\_\_inti__.py便于快速引用  
+

@@ -1,18 +1,11 @@
 from typing import Dict, Any
 
-from tensorflow import keras
 import tensorflow as tf
 from tensorflow.keras.utils import plot_model
-import numpy as np
-from features.extractor import Extractor
 from features.features_layers import FeaturesFusion
 
 from kashgari.tasks.classification.abc_feature_model import ABCClassificationModel
 from kashgari.layers import L
-
-import logging
-
-logging.basicConfig(level='DEBUG')
 
 
 class RCNN_Att_Model(ABCClassificationModel):
@@ -36,20 +29,20 @@ class RCNN_Att_Model(ABCClassificationModel):
         """
         return {
             'layer_bilstm1': {
-                'units': 128,
+                'units': 256,
                 'return_sequences': True
             },
             'layer_dropout': {
-                'rate': 0.5,
+                'rate': 0.1,
                 'name': 'layer_dropout'
             },
             'layer_dropout_output': {
-                'rate': 0.5,
+                'rate': 0.1,
                 'name': 'layer_dropout_output'
             },
             'layer_time_distributed': {},
             'conv_layer1': {
-                'filters': 64,
+                'filters': 128,
                 'kernel_size': 4,
                 'padding': 'valid',
                 'activation': 'relu'
@@ -65,14 +58,13 @@ class RCNN_Att_Model(ABCClassificationModel):
 
         BiLSTM + Convolution + Attention
         """
-        features = keras.Input(shape=(None, self.feature_D), name="features")
+        features = tf.keras.Input(shape=(None, self.feature_D), name="features")
         if self.task_num == 1:
             output_dim = self.label_processor.vocab_size
         else:
             output_dims = [lp.vocab_size for lp in self.label_processor]
         config = self.hyper_parameters
         embed_model = self.embedding.embed_model
-
         # Define layers for BiLSTM
         layer_stack = [
             L.Bidirectional(L.LSTM(**config['layer_bilstm1'])),
@@ -106,15 +98,19 @@ class RCNN_Att_Model(ABCClassificationModel):
         # output tensor
         input_layer = L.Dropout(**config['layer_dropout_output'])(input_layer)
         if self.task_num == 1:
-            tensor = L.Dense(output_dim, activation='sigmoid', name="output0")(input_layer)
-            self.tf_model = keras.Model(inputs=[embed_model.inputs, features], outputs=tensor)
+            output_tensor = L.Dense(output_dim, activation='softmax', name="output0")(input_layer)
+            self.tf_model = tf.keras.Model(inputs=[embed_model.inputs, features], outputs=output_tensor)
         else:
-            output_tensor = [L.Dense(output_dims[i], activation='sigmoid', name="output" + str(i))(input_layer)
-                             for i in range(self.task_num)]
+            # output_tensor = [L.Dense(output_dims[i], activation='sigmoid', name="output" + str(i))(input_layer)
+            #                  for i in range(self.task_num)]
+            output_tensor = [L.Dense(output_dims[0], activation='softmax', name="output0")(input_layer),
+                             L.Dense(output_dims[1], activation='sigmoid', name="output1")(input_layer)]
 
             # use this activation layer as final activation to support multi-label classification
             # tensor = self._activation_layer()(tensor)
 
             # Init model
-            self.tf_model = keras.Model(inputs=[embed_model.inputs, features], outputs=output_tensor)
-            plot_model(self.tf_model, to_file="../reference/model.png")
+            self.tf_model = tf.keras.Model(inputs=[embed_model.inputs, features], outputs=output_tensor)
+
+        # plot_model(self.tf_model, to_file="D:/PycProject/TripleC/reference/model.png")
+        # exit(810)
