@@ -4,7 +4,7 @@ import tensorflow as tf
 from tensorflow.keras.utils import plot_model
 from features.features_layers import FeaturesFusion
 
-from kashgari.tasks.classification.abc_feature_model import ABCClassificationModel
+from kashgari_local.abc_feature_model import ABCClassificationModel
 from kashgari.layers import L
 
 
@@ -113,4 +113,3 @@ class RCNN_Att_Model(ABCClassificationModel):
             self.tf_model = tf.keras.Model(inputs=[embed_model.inputs, features], outputs=output_tensor)
 
         # plot_model(self.tf_model, to_file="D:/PycProject/TripleC/reference/model.png")
-        # exit(810)

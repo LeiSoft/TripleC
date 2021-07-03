@@ -6,6 +6,7 @@
 
 # file: abs_model.py
 # time: 4:05 下午
+# edit by @FoVNull   2021-06
 
 import random
 from abc import ABC
@@ -19,7 +20,7 @@ import tensorflow as tf
 
 import kashgari
 from kashgari.embeddings import ABCEmbedding, BareEmbedding
-from kashgari.generators import BatchDataSet, CorpusGenerator, CorpusFeaturesGenerator, BatchDataSetFeatures
+from kashgari_local.generators import BatchDataSet, CorpusGenerator, CorpusFeaturesGenerator, BatchDataSetFeatures
 from kashgari.layers import L
 from kashgari.logger import logger
 from kashgari.metrics.multi_label_classification import multi_label_classification_report

@@ -3,7 +3,8 @@ import os
 from typing import List, Optional, Union
 
 import random
-from kashgari.embeddings import TransformerEmbedding, WordEmbedding, XLNetEmbedding, MPNetEmbedding
+from kashgari.embeddings import TransformerEmbedding, WordEmbedding
+from kashgari_local import XLNetEmbedding, MPNetEmbedding
 from kashgari.tokenizers import BertTokenizer
 from kashgari.tasks.classification import BiLSTM_Model
 from sklearn.model_selection import train_test_split
@@ -148,17 +149,17 @@ class Trainer:
         train_features = self.extractor.build_features(path + "train.tsv")
         vali_features = self.extractor.build_features(path + "dev.tsv")
 
-        # model = RCNN_Att_Model(embedding, feature_D=len(train_features[0][0]), task_num=params['task_num'])
-        model = BiLSTM_Model(embedding)
+        model = RCNN_Att_Model(embedding, feature_D=len(train_features[0][0]), task_num=params['task_num'])
+        # model = BiLSTM_Model(embedding)
 
-        # model.fit(x_train=(x_train, train_features), y_train=y_train,
-        #           x_validate=(x_vali, vali_features), y_validate=y_vali,
-        #           batch_size=32, epochs=15, callbacks=None, fit_kwargs=None)
-        model.fit(x_train, y_train, x_vali, y_vali, epochs=15, batch_size=32)
-        return model.evaluate(x_test, y_test, batch_size=32, digits=4, truncating=False)
+        model.fit(x_train=(x_train, train_features), y_train=y_train,
+                  x_validate=(x_vali, vali_features), y_validate=y_vali,
+                  batch_size=32, epochs=15, callbacks=None, fit_kwargs=None)
+        # model.fit(x_train, y_train, x_vali, y_vali, epochs=15, batch_size=32)
+        # return model.evaluate(x_test, y_test, batch_size=32, digits=4, truncating=False)
 
-        # test_features = self.extractor.build_features(path + "test.tsv")
-        # return self.evaluate(model, x_test, y_test, test_features)
+        test_features = self.extractor.build_features(path + "test.tsv")
+        return self.evaluate(model, x_test, y_test, test_features)
 
     # 支持交叉验证
     def train_scicite_cross(self, path, **params):

@@ -6,6 +6,7 @@
 
 # file: generator.py
 # time: 4:53 下午
+# edit by @FoVNull   2021-06
 
 from abc import ABC
 from typing import Iterable, Iterator, TYPE_CHECKING
