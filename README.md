@@ -34,5 +34,5 @@ Features：多特征融合，多分类任务（迁移学习），多种预训练
 ### kashgari源码修改说明  
 满足了向模型输入多个Input的需求  
 完全适配多个标签的分类任务之间的迁移学习，增加了task_num参数，只需要指定任务数量即可  
-增加了xlnet的embedding和MPNet的embedding功能
-
+增加了xlnet的embedding和MPNet的embedding功能  
+**注意，如果需要选择huggingface模型的指定隐层需要指定config  "output_hidden_states": true**  
