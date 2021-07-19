@@ -124,17 +124,19 @@ class Extractor:
         # sentence id, word id
         for sid in range(len(pos_seq)):
             seq_features = []
-            # pos_structure = self.get_pos_structure(context[sid])
-            # pos_patterns = [abs(-pp) for pp in self.find_pos_patterns(pos_structure)]
+            # for wid in range(len((pos_seq[sid]))):
+            #     token_features = list(tf.keras.utils.to_categorical(
+            #         pos_seq[sid][wid], num_classes=17, dtype='float32'))
+            #     token_features.append(float(tfidf_matrix[sid][wid]))
+            #
+            #     seq_features.append(
+            #         token_features
+            #     )
+            # features.append(seq_features)
 
-            for wid in range(len((pos_seq[sid]))):
-                onehot = list(tf.keras.utils.to_categorical(
-                    pos_seq[sid][wid], num_classes=17, dtype='float32'))
-                onehot.append(float(tfidf_matrix[sid][wid]))
-                seq_features.append(
-                    onehot
-                )
-            features.append(seq_features)
+            pos_structure = self.get_pos_structure(context[sid])
+            pos_patterns = [abs(-pp) for pp in self.find_pos_patterns(pos_structure)]
+            features.append([pos_patterns])
 
         return features
 

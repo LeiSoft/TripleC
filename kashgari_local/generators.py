@@ -72,7 +72,7 @@ class CorpusFeaturesGenerator(ABCGenerator):
                  buffer_size: int = 2000) -> None:
         super(CorpusFeaturesGenerator, self).__init__(buffer_size=buffer_size)
         self.x_data = x_data[0]
-        # 传入值x_data[1]应为3维
+        # 传入值x_data[1]应为3维(词特征),如是句子特征则是2维
         self.feature_data = x_data[1]
         self.y_data = y_data
         self.buffer_size = buffer_size
@@ -158,7 +158,7 @@ class BatchDataSetFeatures(Iterable):
 
                     # 如果在卷积层之后合并特征，dim_x需要降低
                     dim_x = len(batch_x[0][0])
-                    
+
                     # 特征对齐，统一数据和特征的维度
                     pad_features = tf.keras.preprocessing.sequence.pad_sequences(
                                         features, maxlen=dim_x, dtype='int32', padding='post',

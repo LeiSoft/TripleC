@@ -32,6 +32,11 @@ class RCNN_Att_Model(ABCClassificationModel):
                 'units': 256,
                 'return_sequences': True
             },
+            'layer_gru': {
+                'units': 256,
+                'dropout': 0.1,
+                'return_sequences': True
+            },
             'layer_dropout': {
                 'rate': 0.1,
                 'name': 'layer_dropout'
@@ -67,9 +72,10 @@ class RCNN_Att_Model(ABCClassificationModel):
         embed_model = self.embedding.embed_model
         # Define layers for BiLSTM
         layer_stack = [
-            L.Bidirectional(L.LSTM(**config['layer_bilstm1'])),
+            # L.Bidirectional(L.LSTM(**config['layer_bilstm1'])),
+            L.Bidirectional(L.GRU(**config['layer_gru'])),
             # L.Conv1D(**config['conv_layer1']),
-            L.Dropout(**config['layer_dropout'])
+            L.Dropout(**config['layer_dropout']),
         ]
 
         # tensor flow in Layers {tensor:=layer(tensor)}
