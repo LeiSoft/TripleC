@@ -35,9 +35,9 @@ class Extractor:
         tokenizer = Tokenizer(num_words=len(pos_type), oov_token="<OOV>")
         tokenizer.fit_on_texts(pos_seq)
         seq = pad_sequences(
-                    tokenizer.texts_to_sequences(pos_seq),
-                    padding="post", truncating="post"
-                )
+            tokenizer.texts_to_sequences(pos_seq),
+            padding="post", truncating="post"
+        )
 
         return seq, len(tokenizer.word_counts)
 
@@ -62,7 +62,7 @@ class Extractor:
             type_ = "test"
         data = pd.read_csv("./datasets/" + task + "/SDP_" + type_ + ".csv", sep=',', header=0)
 
-        title_dic, author_dic = pickle.load(open("./datasets/3c_feature_dic_"+type_+".pkl", 'rb'))
+        title_dic, author_dic = pickle.load(open("./datasets/3c_feature_dic_" + type_ + ".pkl", 'rb'))
         features_3c = []
         for unique_id in unique_ids:
             num = int(unique_id[-1])
@@ -116,7 +116,7 @@ class Extractor:
         else:
             context = inputs
             # features_info = self._get_3c(config["task"], [items[0] for items in inputs])
-        
+
         pos_seq, pos_num = self._build_pos_seq(context)
         tfidf_matrix = self._tfidf(context)
 
@@ -139,9 +139,3 @@ class Extractor:
             features.append([pos_patterns])
 
         return features
-
-
-
-
-
-

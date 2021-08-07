@@ -164,10 +164,10 @@ def clean_sentence(s: str):
     # return "".join(re.findall('[a-zA-Z ]', s))
 
 
-formatted("datasets/3c-shared/intent/", 'citation_class_label')
-formatted("datasets/3c-shared/influence/", 'citation_influence_label')
-formatted_test("datasets/3c-shared/intent/")
-formatted_test("datasets/3c-shared/influence/")
+# formatted("datasets/3c-shared/intent/", 'citation_class_label')
+# formatted("datasets/3c-shared/influence/", 'citation_influence_label')
+# formatted_test("datasets/3c-shared/intent/")
+# formatted_test("datasets/3c-shared/influence/")
 
 # generate_corpus("datasets/intent/")
 # for _ in ["test", "train"]:
@@ -182,12 +182,12 @@ formatted_test("datasets/3c-shared/influence/")
 #     for i, dic in enumerate(all_):
 #         f.write(dic)
 
-# label = {'result': '0', 'background': '1', 'method': '2'}
-# stat = {}
-# for key in label.keys():
-#     stat[key] = 0
-# for t in ['train', 'dev', 'test']:
-#     process_sci("./datasets/scicite/", t, label, stat, context_label='string', intent_label='label')
+label = {'result': '0', 'background': '1', 'method': '2'}
+stat = {}
+for key in label.keys():
+    stat[key] = 0
+for t in ['train', 'dev', 'test']:
+    process_sci("./datasets/scicite/", t, label, stat, context_label='string', intent_label='label')
 
 
 # label = {'Background': '0', 'CompareOrContrast': '1', 'Extends': '2', 'Future': '3', 'Motivation': '4', 'Uses': '5'}

@@ -3,6 +3,7 @@ from train import Trainer
 import tensorflow as tf
 import argparse
 import pickle
+import numpy as np
 
 
 def repeat_run(k):
@@ -27,7 +28,7 @@ def repeat_run(k):
                    max(acc), max(p), max(r), max(f1),
                    min(acc), min(p), min(r), min(f1))
         f.write(res)
-
+    print('std:{}'.format(np.std(f1)))
     pickle.dump((acc, p, r, f1), open("./datasets/acl-arc/details.pkl", 'wb'))
     # if (sum(f1) / k) > 0.70:
     #     print(sum(f1)/k)
