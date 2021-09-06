@@ -1,6 +1,6 @@
 from utils import *
 from typing import Union, List
-import en_core_web_lg
+# import en_core_web_sm
 import networkx as nx
 from tqdm import tqdm
 import pandas as pd
@@ -8,6 +8,7 @@ import pickle
 import regex
 import nltk
 import string
+import sys
 
 import tensorflow as tf
 from tensorflow.keras.preprocessing.text import Tokenizer
@@ -16,8 +17,10 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 class Extractor:
     def __init__(self, label: bool):
-        self.parser = en_core_web_lg.load()
+        # self.parser = en_core_web_sm.load()
+        self.parser = None
         self.label = label
+        self.senti_features = pickle.load(open('./features/senti_features.pkl', 'rb'))
 
     def _build_pos_seq(self, context):
 
@@ -117,13 +120,13 @@ class Extractor:
             context = inputs
             # features_info = self._get_3c(config["task"], [items[0] for items in inputs])
 
-        pos_seq, pos_num = self._build_pos_seq(context)
-        tfidf_matrix = self._tfidf(context)
+        # pos_seq, pos_num = self._build_pos_seq(context)
+        # tfidf_matrix = self._tfidf(context)
 
         features = []
         # sentence id, word id
-        for sid in range(len(pos_seq)):
-            seq_features = []
+        for sid in range(len(context)):
+            # seq_features = []
             # for wid in range(len((pos_seq[sid]))):
             #     token_features = list(tf.keras.utils.to_categorical(
             #         pos_seq[sid][wid], num_classes=17, dtype='float32'))
@@ -136,6 +139,6 @@ class Extractor:
 
             pos_structure = self.get_pos_structure(context[sid])
             pos_patterns = [abs(-pp) for pp in self.find_pos_patterns(pos_structure)]
-            features.append([pos_patterns])
+            features.append(pos_patterns + self.senti_features[sid])
 
         return features

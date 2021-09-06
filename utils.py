@@ -55,13 +55,13 @@ def get_multi_label(path, y):
     return output
 
 
+# 3c-task专用
 def add_label(_y, multi_task_path: List):
     # only support numerical label
     for i, e in enumerate(_y):
         _y[i] = [str(e)]
 
     for path in multi_task_path:
-
         sub_y = load_data(path)[1]
         for i, e in enumerate(sub_y):
             _y[i].append(str(e))

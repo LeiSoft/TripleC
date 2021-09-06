@@ -361,16 +361,16 @@ class ABCClassificationModel(ABCTaskModel, ABC):
 
             features = np.array(x_data[1])
             # 如果在卷积层之后合并特征，dim_x需要降低
-            dim_x = len(tensor[0][0])
+            # dim_x = len(tensor[0][0])
             
             # 特征对齐，统一数据和特征的维度
-            pad_features = tf.keras.preprocessing.sequence.pad_sequences(
-                                features, maxlen=dim_x, dtype='int32', padding='post',
-                                truncating='post', value=0
-                            )
+            # pad_features = tf.keras.preprocessing.sequence.pad_sequences(
+            #                     features, maxlen=dim_x, dtype='int32', padding='post',
+            #                     truncating='post', value=0
+            #                 )
 
             logger.debug(f'predict input shape {np.array(tensor).shape}')
-            pred = self.tf_model.predict([tensor, pad_features], batch_size=batch_size, **predict_kwargs)
+            pred = self.tf_model.predict([tensor, features], batch_size=batch_size, **predict_kwargs)
 
             for i in range(self.task_num):
                 logger.debug(f'predict output{i} shape {pred[i].shape}')
@@ -427,7 +427,7 @@ class ABCClassificationModel(ABCTaskModel, ABC):
                                                             digits=digits))
                 print("saving counfusion matrix...")                                            
                 pickle.dump(sklearn_metrics.confusion_matrix(y_data[i], y_pred[i]),
-                             open('./reference/confusion_matrix.pkl', 'wb'))
+                             open(f'./reference/task{self.task_num}_confusion_matrix.pkl', 'wb'))
                 
                 report.append({
                     'detail': original_report,

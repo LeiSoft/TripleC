@@ -163,16 +163,18 @@ def clean_sentence(s: str):
     return " ".join([token.text for token in tagger(s)])
     # return "".join(re.findall('[a-zA-Z ]', s))
 
-
+# 3c-task语料处理
 # formatted("datasets/3c-shared/intent/", 'citation_class_label')
 # formatted("datasets/3c-shared/influence/", 'citation_influence_label')
 # formatted_test("datasets/3c-shared/intent/")
 # formatted_test("datasets/3c-shared/influence/")
 
+# 3c-语料特征文件构建，事先抽取
 # generate_corpus("datasets/intent/")
 # for _ in ["test", "train"]:
 #     build_3c_feature_dic(_)
 
+# 合并语料
 # all_ = []
 # for s in ["train", "dev", "test"]:
 #     with open("./datasets/scicite-scibert/"+s+".jsonl", 'r', encoding='utf-8') as f:
@@ -182,6 +184,7 @@ def clean_sentence(s: str):
 #     for i, dic in enumerate(all_):
 #         f.write(dic)
 
+# 预处理scicite
 label = {'result': '0', 'background': '1', 'method': '2'}
 stat = {}
 for key in label.keys():
@@ -189,7 +192,7 @@ for key in label.keys():
 for t in ['train', 'dev', 'test']:
     process_sci("./datasets/scicite/", t, label, stat, context_label='string', intent_label='label')
 
-
+# 预处理acl-arc
 # label = {'Background': '0', 'CompareOrContrast': '1', 'Extends': '2', 'Future': '3', 'Motivation': '4', 'Uses': '5'}
 # stat = {}
 # for key in label.keys():

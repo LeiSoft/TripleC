@@ -124,7 +124,7 @@ class Trainer:
 
         return model
 
-    def train_scicite(self, path, **params):
+    def train_sci(self, path, **params):
         x_train, y_train = load_data(path + "train.tsv")
         x_vali, y_vali = load_data(path + "dev.tsv")
         x_test, y_test = load_data(path + "test.tsv")
@@ -149,7 +149,7 @@ class Trainer:
         train_features = self.extractor.build_features(path + "train.tsv")
         vali_features = self.extractor.build_features(path + "dev.tsv")
 
-        model = RCNN_Att_Model(embedding, feature_D=len(train_features[0][0]), task_num=params['task_num'])
+        model = RCNN_Att_Model(embedding, feature_D=len(train_features[0]), task_num=params['task_num'])
         # model = BiLSTM_Model(embedding)
 
         model.fit(x_train=(x_train, train_features), y_train=y_train,
@@ -161,8 +161,8 @@ class Trainer:
         test_features = self.extractor.build_features(path + "test.tsv")
         return self.evaluate(model, x_test, y_test, test_features)
 
-    # 支持交叉验证
-    def train_scicite_cross(self, path, **params):
+    # 交叉验证
+    def train_sci_cross(self, path, **params):
         x_data, y_data = load_data(path + "all.tsv")
         if self.model_type == 'xlnet':
             embedding = self._embedding(xlnet_corpus=path + "all.tsv")

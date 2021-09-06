@@ -9,7 +9,7 @@ import numpy as np
 def repeat_run(k):
     reports = []
     for i in range(k):
-        reports.append(trainer.train_scicite("./datasets/acl-arc/", task_num=1))
+        reports.append(trainer.train_sci("./datasets/acl-arc/", task_num=1))
     acc, p, r, f1 = [], [], [], []
     with open("./datasets/acl-arc/repeat_res.tsv", 'w', encoding='utf-8') as f:
         for report in reports:
@@ -61,18 +61,18 @@ if __name__ == '__main__':
             当交叉验证方法为fold时，k折交叉 => fold=k
             当方法为random时，fold为随机的次数，种子范围默认为range(fold)
             '''
-            # trainer.train_scicite_cross("./datasets/scicite/", task_num=2, cross='fold', fold=10)
-            # trainer.train_scicite_cross("./datasets/scicite/", task_num=2,
+            # trainer.train_sci_cross("./datasets/scicite/", task_num=2, cross='fold', fold=10)
+            # trainer.train_sci_cross("./datasets/scicite/", task_num=2,
             #                             cross='random', fold=10, t_v_size=2777, v_size=916)
-            trainer.train_scicite("./datasets/scicite/", task_num=1)
+            trainer.train_sci("./datasets/scicite/", task_num=1)
 
         if args.task_type == "acl-arc":
-            repeat_run(5)
-            # trainer.train_scicite("./datasets/acl-arc/", task_num=1)
-            # trainer.train_scicite_cross("./datasets/acl-arc/", task_num=1, cross='fold', fold=5)
+            # repeat_run(5)
+            trainer.train_sci("./datasets/acl-arc/", task_num=1)
+            # trainer.train_sci_cross("./datasets/acl-arc/", task_num=1, cross='fold', fold=5)
             # 按照allenai的两篇论文的数据集数量切分 验证+测试=253 验证=114
             # while True:
-            #     trainer.train_scicite_cross("./datasets/acl-arc/", task_num=1,
+            #     trainer.train_sci_cross("./datasets/acl-arc/", task_num=1,
             #                                 cross='random', fold=10, t_v_size=253, v_size=114)
 
         if args.task_type in ["3c-shared/intent", "3c-shared/influence"]:
