@@ -37,22 +37,69 @@ def load_non_label_data(path):
     return x_data
 
 
-def get_multi_label(path, y):
+def get_multi_label(path, y, data_type):
     output = []
 
     with open(path, 'r', encoding='utf-8') as f:
         for i, line in enumerate(f.readlines()):
-            # scicite
-            influence = json.loads(line.strip())['isKeyCitation']
-            # acl-arc
-            # influence = json.loads(line.strip())['is_citation']
-            # seq_pos = json.loads(line.strip())['excerpt_index']
+            if data_type == 'scicite':
+                dic = json.loads(line.strip())
+                influence = dic['isKeyCitation']
+                section_name = str(int(dic['excerpt_index'])//3)
+
+            if data_type == '3c':
+                influence = line.strip().split('\t')[2] == '0'
+                section_name = 'Non_Section'
 
             if influence:
-                output.append([y[i], 'I'])
+                output.append([y[i], 'I', section_name])
             else:
-                output.append([y[i], 'N'])
+                output.append([y[i], 'N', section_name])
     return output
+
+def get_scaffolds(path):
+    worthiness, sections = [], []
+    with open(path+'/scaffolds/cite-worthiness-scaffold-train.jsonl', 'r', encoding='utf-8') as f:
+        for i, line in enumerate(f.readlines()):
+            dic = json.loads(line.strip())
+            worthiness.append(
+                               (
+                               dic['text'].split(), 
+                               abs(-(dic['is_citation']==True))
+                               )
+                            )
+    section2id = {'introduction': 0, 'related work': 1, 'method': 2, 'experiments': 3, 'conclusion': 4}
+    with open(path+'/scaffolds/sections-scaffold-train.jsonl', 'r', encoding='utf-8') as f:
+        for i, line in enumerate(f.readlines()):
+            dic = json.loads(line.strip())
+            sections.append((dic['text'].split(), section2id[dic['section_name']]))
+    return worthiness, sections
+
+
+def load_json(path, task_type):
+    data, context = [], []
+    with open(path, 'r', encoding='utf-8') as f:
+        for line in f.readlines():
+            if task_type == 'acl-arc':
+                dic = json.loads(line.strip())
+                context.append(dic['cleaned_cite_text'].split())
+            if task_type == 'scicite':
+                dic = json.loads(line.strip())
+                context.append(dic['string'].split())
+            if task_type == '3c':
+                dic = None
+                context.append(line.strip().split()[1].split())
+            data.append(dic)
+    # try to find some features
+    # print(data[0].keys())
+    # keys = ['section_number', 'extended_context', 'text']
+    # for _ in range(10):
+    #     for k in keys:
+    #         print(k, data[_][k])
+    #     print(data[_]['cite_marker_offset'][0]/len(data[_]['cleaned_cite_text']))
+    #     print('############')
+    # exit(99)
+    return context, data
 
 
 # 3c-task专用

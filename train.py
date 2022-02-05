@@ -1,16 +1,20 @@
 import math
 import os
 from typing import List, Optional, Union
+from tqdm import tqdm
 
-import random
-from kashgari.embeddings import TransformerEmbedding, WordEmbedding
-from kashgari_local import XLNetEmbedding, MPNetEmbedding
+import numpy as np
+import tensorflow as tf
+from kashgari.embeddings import WordEmbedding, TransformerEmbedding
+from kashgari_local import XLNetEmbedding, MPNetEmbedding, TransformerEmbeddingPE
 from kashgari.tokenizers import BertTokenizer
 from kashgari.tasks.classification import BiLSTM_Model
 from sklearn.model_selection import train_test_split
 from transformers import XLNetTokenizer, MPNetTokenizer
+from transformers import BertTokenizer as HFBertTokenizer
 
 from models.RCNN_Att import RCNN_Att_Model
+from models.scaffold_model import Scaffold_Model
 from models.Bare_model import Bare_Model
 from features.extractor import Extractor
 from utils import *
@@ -34,7 +38,7 @@ class Trainer:
             self.vocab_path = _args.model_folder + '/vocab.txt'
         self.model_folder = _args.model_folder
         self.task_type = _args.task_type
-        self.extractor = Extractor(True)
+        self.extractor = Extractor()
 
     def _embedding(self, **params):
         if self.model_type == "w2v":
@@ -45,23 +49,27 @@ class Trainer:
         elif self.model_type == "mpnet":
             embedding = MPNetEmbedding(self.model_folder)
         else:
-            embedding = TransformerEmbedding(self.vocab_path, self.config_path, self.checkpoint_path,
-                                             model_type=self.model_type)
+            embedding = TransformerEmbeddingPE(self.vocab_path, self.config_path, self.checkpoint_path,
+                                               model_type=self.model_type)
 
         return embedding
 
     def _tokenizing(self, _x):
+        print('###### tokenizing... #########')
         sentences_tokenized = _x
 
         if self.model_type == 'bert':
             tokenizer = BertTokenizer.load_from_vocab_file(self.vocab_path)
-            sentences_tokenized = [tokenizer.tokenize(" ".join(seq)) for seq in _x]
+            sentences_tokenized = [tokenizer.tokenize(" ".join(seq)) for seq in tqdm(_x)]
         if self.model_type == 'xlnet':
             tokenizer = XLNetTokenizer(self.model_folder + "/spiece.model", )
-            sentences_tokenized = [tokenizer.tokenize(" ".join(seq)) for seq in _x]
+            sentences_tokenized = [tokenizer.tokenize(" ".join(seq)) for seq in tqdm(_x)]
         if self.model_type == 'mpnet':
             tokenizer = MPNetTokenizer(self.model_folder + '/vocab.txt')
-            sentences_tokenized = [tokenizer.tokenize(" ".join(seq)) for seq in _x]
+            sentences_tokenized = [tokenizer.tokenize(" ".join(seq)) for seq in tqdm(_x)]
+        if self.model_type == 'bert_hf':
+            tokenizer = HFBertTokenizer(self.model_folder + '/vocab.txt')
+            sentences_tokenized = [tokenizer.tokenize(" ".join(seq)) for seq in tqdm(_x)]
 
         return sentences_tokenized
 
@@ -124,82 +132,64 @@ class Trainer:
 
         return model
 
-    def train_sci(self, path, **params):
-        x_train, y_train = load_data(path + "train.tsv")
-        x_vali, y_vali = load_data(path + "dev.tsv")
-        x_test, y_test = load_data(path + "test.tsv")
-
-        if self.model_type == 'xlnet':
-            embedding = self._embedding(xlnet_corpus=path + "all.tsv")
-            x_train = self._tokenizing(x_train)
-            x_vali = self._tokenizing(x_vali)
-            x_test = self._tokenizing(x_test)
-        elif self.model_type == 'mpnet':
-            embedding = self._embedding()
-            x_train = self._tokenizing(x_train)
-            x_vali = self._tokenizing(x_vali)
-            x_test = self._tokenizing(x_test)
-        else:
-            embedding = self._embedding()
-
-        if params['task_num'] > 1:
-            y_train = get_multi_label(path + "train.jsonl", y_train)
-            y_vali = get_multi_label(path + "dev.jsonl", y_vali)
-            y_test = get_multi_label(path + "test.jsonl", y_test)
-        train_features = self.extractor.build_features(path + "train.tsv")
-        vali_features = self.extractor.build_features(path + "dev.tsv")
-
-        model = RCNN_Att_Model(embedding, feature_D=len(train_features[0]), task_num=params['task_num'])
-        # model = BiLSTM_Model(embedding)
-
-        model.fit(x_train=(x_train, train_features), y_train=y_train,
-                  x_validate=(x_vali, vali_features), y_validate=y_vali,
-                  batch_size=32, epochs=15, callbacks=None, fit_kwargs=None)
-        # model.fit(x_train, y_train, x_vali, y_vali, epochs=15, batch_size=32)
-        # return model.evaluate(x_test, y_test, batch_size=32, digits=4, truncating=False)
-
-        test_features = self.extractor.build_features(path + "test.tsv")
-        return self.evaluate(model, x_test, y_test, test_features)
-
-    # 交叉验证
     def train_sci_cross(self, path, **params):
         x_data, y_data = load_data(path + "all.tsv")
-        if self.model_type == 'xlnet':
-            embedding = self._embedding(xlnet_corpus=path + "all.tsv")
-            x_data = self._tokenizing(x_data)
-        elif self.model_type == 'mpnet':
-            embedding = self._embedding()
-            x_data = self._tokenizing(x_data)
-        else:
-            embedding = self._embedding()
-
         if params['task_num'] > 1:
             if self.task_type == 'scicite':
-                y_data = get_multi_label(path + "all.jsonl", y_data)
-            if self.task_type == 'acl-arc':
-                y_data = get_multi_label(path + "/scaffolds/cite-worthiness-scaffold-train.jsonl", y_data)
-        all_features = self.extractor.build_features(path + "all.tsv")
+                x_data = self._tokenizing(x_data)
+                y_data = get_multi_label(path + "all.jsonl", y_data, self.task_type)
+            if self.task_type == '3c':
+                x_data = self._tokenizing(x_data)
+                y_data = get_multi_label('./datasets/3c-shared/influence/train.tsv', y_data, self.task_type)
+        if self.task_type == '3c':
+            all_features = self.extractor.build_features(path + "all.tsv", task_type=self.task_type)
+        else:
+            all_features = self.extractor.build_features(path + "all.jsonl", task_type=self.task_type)
 
         data_gen = None
-        assert params['cross'] in ['fold', 'random'], 'cross validation must be fold or random'
+        assert params['cross'] in ['fold', 'random', 'repeat'], 'cross validation must be fold/random/repeat'
         if params['cross'] == 'fold':
-            data_gen = self.k_fold(params['fold'], x_data, y_data, all_features)
+            data_gen = self.k_fold(params['fold'], x_data, y_data, all_features, params['v_size'])
         if params['cross'] == 'random':
             data_gen = self.random_cross(params['fold'], x_data, y_data, all_features,
                                          params['t_v_size'], params['v_size'])
+        # acl-arc的固定数据集重复实验
+        if params['cross'] == 'repeat':
+            x_train, y_train = load_data(path + 'train.tsv')
+            x_vali, y_vali = load_data(path + 'dev.tsv')
+            x_test, y_test = load_data(path + 'test.tsv')
+            f_train = self.extractor.build_features(path + "train.jsonl", task_type=self.task_type)
+            f_vali = self.extractor.build_features(path + "dev.jsonl", task_type=self.task_type)
+            f_test = self.extractor.build_features(path + "test.jsonl", task_type=self.task_type)
+            data_gen = self.repeat_val(params['fold'], x_train, y_train, f_train, x_vali, y_vali, f_vali, x_test, y_test, f_test)
 
+        callbacks = [tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)]
         reports = []
         for x_test, y_test, test_features, \
             x_vali, y_vali, vali_features, \
-            x_train, y_train, train_features in data_gen:
-            model = RCNN_Att_Model(embedding, feature_D=len(train_features[0][0]), task_num=params['task_num'])
+            x_train, y_train, train_features, seed in data_gen:
+
+            if self.model_type == 'xlnet':
+                embedding = self._embedding(xlnet_corpus=path + "all.tsv")
+            else:
+                embedding = self._embedding()
+
             print("train-{}, vali-{}, test-{}".format(len(x_train), len(x_vali), len(x_test)))
+            if params['with_feature']:
+                model = RCNN_Att_Model(embedding, feature_D=len(train_features[0][0]), task_num=params['task_num'])
+                model.fit(x_train=(x_train, train_features), y_train=y_train,
+                          x_validate=(x_vali, vali_features), y_validate=y_vali,
+                          batch_size=32, epochs=20, callbacks=None)
+                rep = self.evaluate(model, x_test, y_test, test_features)
+            else:
+                model = Bare_Model(embedding)
+                model.fit(x_train, y_train, x_vali, y_vali, batch_size=32, epochs=15)
+                rep = model.evaluate(x_test, y_test, batch_size=32)
 
-            model.fit(x_train=(x_train, train_features), y_train=y_train,
-                      x_validate=(x_vali, vali_features), y_validate=y_vali,
-                      batch_size=32, epochs=15, callbacks=None, fit_kwargs=None)
-
-            reports.append(self.evaluate(model, x_test, y_test, test_features))
+            reports.append(rep)
+            # if reports[-1][0]['detail']['macro avg']['f1-score'] > 0.73:
+            #     print(seed, '#'*100)
+            #     exit(810)
 
         with open(path + "reports.tsv", 'w', encoding='utf-8') as f:
             for i in range(params["task_num"]):
@@ -216,10 +206,75 @@ class Trainer:
                     .format(i, params['fold'],
                             sum(acc) / params['fold'], sum(p) / params['fold'], sum(r) / params['fold'], sum(f1) / params['fold'],
                             max(acc), max(p), max(r), max(f1), min(acc), min(p), min(r), min(f1))
-                f.write(res)
-                if sum(f1) / params['fold'] > 0.7 or sum(acc) / params['fold'] > 0.79:
-                    print(sum(f1) / params['fold'], sum(acc) / params['fold'])
-                    exit(99)
+                f.write(res+f'\nstd:{np.std(f1)}\n')
+            print(f'std:{np.std(f1)}')
+    
+    def train_scaffold(self, path):
+        x_data, y_data = load_data(path + "all.tsv")
+        all_features = self.extractor.build_features(path + "all.jsonl", task_type=self.task_type)
+        x_data = self._tokenizing(x_data)
+
+        worth, sections = get_scaffolds(path)
+        worth_text = self._tokenizing([text for text, label in worth])
+        sections_text = self._tokenizing([text for text, label in sections])
+        worth_label = [label for text, label in worth]
+        sections_label = [label for text, label in sections]
+
+        output_dims = [len(set(y_data)), len(set(worth_label)), len(set(sections_label))]
+        
+        wt_train, wt_test, wl_train, wl_test = train_test_split(
+            worth_text, worth_label, test_size=0.15, random_state=114
+        )
+        st_train, st_test, sl_train, sl_test = train_test_split(
+            sections_text, sections_label, test_size=0.15, random_state=810
+        )
+        
+        reports = []
+        fold_num = 10
+        for i in range(fold_num):
+            print(f'################{i+1}/{fold_num}#################')
+            x_train, x_test, y_train, y_test, f_train, f_test = train_test_split(
+                x_data, y_data, all_features, test_size=130, random_state=6
+            )
+            # x_train, y_train = load_data(path + 'train.tsv')
+            # x_vali, y_vali = load_data(path + 'dev.tsv')
+            # x_train += x_vali
+            # y_train += y_vali
+            # x_train = self._tokenizing(x_train)
+            # x_test, y_test = load_data(path + 'test.tsv')
+            # x_test = self._tokenizing(x_test)
+            # f_train = self.extractor.build_features(path + "train_dev.jsonl", task_type=self.task_type)
+            # f_test = self.extractor.build_features(path + "test.jsonl", task_type=self.task_type)
+
+
+            model = Scaffold_Model(self.model_folder, self.model_type, output_dims, feature_D=len(f_train[0][0]))
+
+            model.fit(x_train, y_train, wt_train, wl_train, st_train, sl_train, f_train,
+                    batch_size=32, epoch=15)
+
+            report = model.evaluate(x_test, y_test, wt_test, wl_test, st_test, sl_test, f_test,
+                                    batch_size=32)
+            reports.append(report)
+
+        with open(path + "scaffold_reports.tsv", 'w', encoding='utf-8') as f:
+            for i in range(len(reports[0])):
+                acc, p, r, f1 = [], [], [], []
+                for report in reports:
+                    acc.append(report[i]['detail']['accuracy'])
+                    p.append(report[i]['detail']['macro avg']['precision'])
+                    r.append(report[i]['detail']['macro avg']['recall'])
+                    f1.append(report[i]['detail']['macro avg']['f1-score'])
+                res = "task{};{}-Fold\n" \
+                      "avg-macro:acc={}; p={}; r={}; f1={}\n" \
+                      "max-macro:acc={}; p={}; r={}; f1={}\n" \
+                      "min-macro:acc={}; p={}; r={}; f1={}\n" \
+                    .format(i, fold_num,
+                            sum(acc) / fold_num, sum(p) / fold_num, sum(r) / fold_num, sum(f1) / fold_num,
+                            max(acc), max(p), max(r), max(f1), min(acc), min(p), min(r), min(f1))
+                f.write(res+f'\nstd:{np.std(f1)}\n')
+            print(f'std:{np.std(f1)}')
+        
+
 
     @staticmethod
     def evaluate(model, x_test_pure, y_test, features):
@@ -243,20 +298,31 @@ class Trainer:
                 f.write("CCT" + str(index + 1) + "," + label + "\n")
 
     @staticmethod
-    def k_fold(k, x, y, f):
-        part = math.ceil((len(x) / (k * 2)))
-        for i in range(0, len(x), part * 2):
+    def k_fold(k, x, y, f, part):
+        np.random.seed(6)
+        np.random.shuffle(x)
+        np.random.shuffle(y)
+        np.random.shuffle(f)
+        step = len(x) // k
+        for i in range(0, len(x), step):
             yield x[i:i + part], y[i:i + part], f[i:i + part], \
                   x[i + part:i + part * 2], y[i + part:i + part * 2], f[i + part:i + part * 2], \
-                  x[:i] + x[i + part * 2:], y[:i] + y[i + part * 2:], f[:i] + f[i + part * 2:]
+                  x[:i] + x[i + part * 2:], y[:i] + y[i + part * 2:], f[:i] + f[i + part * 2:], -1
 
     @staticmethod
     def random_cross(k, x, y, f, t_v_size, v_size):
-        seeds = [random.randint(0, 1000) for _ in range(k)]
-        for seed in seeds:
+        # 3c-intent 2 acl-arc 6/82
+        seeds = [2 for _ in range(k)]
+        for idx, seed in enumerate(seeds):
+            print(f'################{idx+1}/{k}#################')
             x_train, x_vali, y_train, y_vali, f_train, f_vali = train_test_split(
                 x, y, f, test_size=t_v_size, shuffle=True, random_state=seed)
             x_test, x_vali, y_test, y_vali, f_test, f_vali = train_test_split(
                 x_vali, y_vali, f_vali, test_size=v_size, shuffle=True, random_state=seed)
 
-            yield x_test, y_test, f_test, x_vali, y_vali, f_vali, x_train, y_train, f_train
+            yield x_test, y_test, f_test, x_vali, y_vali, f_vali, x_train, y_train, f_train, seed
+
+    @staticmethod
+    def repeat_val(k, x_train, y_train, f_train, x_vali, y_vali, f_vali, x_test, y_test, f_test):
+        for _ in range(k):
+            yield x_test, y_test, f_test, x_vali, y_vali, f_vali, x_train, y_train, f_train, -1

@@ -30,6 +30,7 @@ class ABCGenerator(Iterable, ABC):
         raise NotImplementedError
 
     def sample(self) -> Iterator[Tuple[Any, Any]]:
+        # np.random.seed(514)
         buffer, is_full = [], False
         for sample in self:
             buffer.append(sample)
@@ -62,6 +63,7 @@ class CorpusGenerator(ABCGenerator):
     def __len__(self) -> int:
         return len(self.x_data)
 
+
 # 增加特征输入
 class CorpusFeaturesGenerator(ABCGenerator):
 
@@ -83,6 +85,7 @@ class CorpusFeaturesGenerator(ABCGenerator):
 
     def __len__(self) -> int:
         return len(self.x_data)
+
 
 # 增加特征输入
 class BatchDataSetFeatures(Iterable):
@@ -154,25 +157,26 @@ class BatchDataSetFeatures(Iterable):
             for batch_x, batch_feature, batch_y in self.__iter__():
                 if batch_count is None or i < batch_count:
                     i += 1
-                    features = np.array(batch_feature)
+                    # features = np.array(batch_feature)
 
-                    # 卷积的padding模式为Valid的情况下，dim_x需要降低
+                    # 卷积的padding模式为Valid的情况下，dim_x需要降低; 词级别特征
                     dim_x = len(batch_x[0][0])
 
                     # 特征对齐，统一数据和特征的维度
-                    # pad_features = tf.keras.preprocessing.sequence.pad_sequences(
-                    #                     features, maxlen=dim_x, dtype='int32', padding='post',
-                    #                     truncating='post', value=0
-                    #                 )
+                    features = tf.keras.preprocessing.sequence.pad_sequences(
+                        batch_feature, maxlen=dim_x, dtype='int32', padding='post',
+                        truncating='post', value=0
+                    )
                     # tf.keras.model.fit()的generator输入
                     y_dic = {}
                     for i in range(self.task_num):
-                       y_dic['output'+str(i)] = batch_y[i]
-                    yield {"data":batch_x, "features":features}, y_dic
+                        y_dic['output' + str(i)] = batch_y[i]
+                    yield {"data": batch_x, "features": features}, y_dic
                 if batch_count and i >= batch_count:
                     should_continue = False
                     break
-                
+
+
 class BatchDataSet(Iterable):
     def __init__(self,
                  corpus: CorpusGenerator,
@@ -249,7 +253,6 @@ class BatchDataSet(Iterable):
         # if batch_count is None:
         #     batch_count = len(self)
         # return dataset.take(batch_count)
-
 
 
 class Seq2SeqDataSet(Iterable):

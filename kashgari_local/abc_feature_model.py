@@ -8,7 +8,7 @@
 # time: 4:05 下午
 # edit by @FoVNull   2021-06
 
-import random
+import tensorflow_addons as tfa
 from abc import ABC
 import numpy as np
 from typing import List, Dict, Any, Union
@@ -121,11 +121,11 @@ class ABCClassificationModel(ABCTaskModel, ABC):
 
     def build_model_generator(self,
                               generators: List[CorpusGenerator]) -> None:
-        '''
+        """
         这里说明一下 text_processor只处理x_data不处理标签
         多个标签分类任务情况下，由于文本表示为多任务共享，build_vocab_generator只对一组generators进行执行
         多任务不同的文本表示功能，暂未实现
-        '''
+        """
         if not self.text_processor.vocab2idx:
             self.text_processor.build_vocab_generator(generators[0])
            
@@ -172,6 +172,7 @@ class ABCClassificationModel(ABCTaskModel, ABC):
             metrics (object): List of metrics to be evaluated by the model during training and testing.
             **kwargs: additional params passed to :meth:`tf.keras.Model.predict``.
         """
+        loss_weights = None
         if loss is None:
             '''
             loss函数选择
@@ -180,22 +181,20 @@ class ABCClassificationModel(ABCTaskModel, ABC):
                 loss = 'binary_crossentropy'
             else:
                 loss = 'sparse_categorical_crossentropy'
-            
-            loss_weights = None
+
             if self.task_num > 1:
                 loss = {}
                 loss_weights = {}
                 for i in range(self.task_num):
-                    loss['output'+str(i)] = 'binary_crossentropy'
+                    loss['output'+str(i)] = 'categorical_crossentropy'
                     if i == 0:
                         loss_weights['output'+str(i)] = 1.
                     else:
-                        loss_weights['output'+str(i)] = 0.8
+                        loss_weights['output'+str(i)] = 1.
         if optimizer is None:
             optimizer = 'adam'
         if metrics is None:
             metrics = ['accuracy']
-
         self.tf_model.compile(loss=loss,
                               loss_weights=loss_weights,
                               optimizer=optimizer,
@@ -205,7 +204,7 @@ class ABCClassificationModel(ABCTaskModel, ABC):
     def fit(self,
             x_train,
             y_train: Union[ClassificationLabelVar, MultiLabelClassificationLabelVar],
-            x_validate = None,
+            x_validate=None,
             y_validate: Union[ClassificationLabelVar, MultiLabelClassificationLabelVar] = None,
             *,        
             batch_size: int = 64,
@@ -296,9 +295,9 @@ class ABCClassificationModel(ABCTaskModel, ABC):
         else:
             self.build_model_generator([[train_non_feature_gen[i],valid_non_feature_gen[i]] for i in range(self.task_num)])
 
-        model_summary = []
-        self.tf_model.summary(print_fn=lambda x: model_summary.append(x))
-        logger.debug('\n'.join(model_summary))
+        # model_summary = []
+        # self.tf_model.summary(print_fn=lambda x: model_summary.append(x))
+        # logger.debug('\n'.join(model_summary))
 
         train_set = BatchDataSetFeatures(train_sample_gen,
                                     text_processor=self.text_processor,
@@ -359,15 +358,15 @@ class ABCClassificationModel(ABCTaskModel, ABC):
                                                    seq_length=seq_length,
                                                    max_position=self.embedding.max_position)
 
-            features = np.array(x_data[1])
-            # 如果在卷积层之后合并特征，dim_x需要降低
-            # dim_x = len(tensor[0][0])
+            # features = np.array(x_data[1])
+            # 如果在卷积层之后合并特征，dim_x需要降低; 词级别特征
+            dim_x = len(tensor[0][0])
             
             # 特征对齐，统一数据和特征的维度
-            # pad_features = tf.keras.preprocessing.sequence.pad_sequences(
-            #                     features, maxlen=dim_x, dtype='int32', padding='post',
-            #                     truncating='post', value=0
-            #                 )
+            features = tf.keras.preprocessing.sequence.pad_sequences(
+                                x_data[1], maxlen=dim_x, dtype='int32', padding='post',
+                                truncating='post', value=0
+                            )
 
             logger.debug(f'predict input shape {np.array(tensor).shape}')
             pred = self.tf_model.predict([tensor, features], batch_size=batch_size, **predict_kwargs)

@@ -29,29 +29,10 @@ class RCNN_Att_Model(ABCClassificationModel):
         """
         return {
             'layer_bilstm1': {
-                'units': 256,
+                'units': 128,
                 'return_sequences': True
-            },
-            'layer_gru': {
-                'units': 256,
-                'dropout': 0.1,
-                'return_sequences': True
-            },
-            'layer_dropout': {
-                'rate': 0.1,
-                'name': 'layer_dropout'
-            },
-            'layer_dropout_output': {
-                'rate': 0.1,
-                'name': 'layer_dropout_output'
             },
             'layer_time_distributed': {},
-            'conv_layer1': {
-                'filters': 128,
-                'kernel_size': 4,
-                'padding': 'valid',
-                'activation': 'relu'
-            },
             'layer_output1': {
                 'activation': 'softmax'
             },
@@ -63,54 +44,69 @@ class RCNN_Att_Model(ABCClassificationModel):
 
         BiLSTM + Convolution + Attention
         """
-        features = tf.keras.Input(shape=self.feature_D, name="features")
+        l1_reg = tf.keras.regularizers.l1(0.01)
+        l2_reg = tf.keras.regularizers.L2(0.01)
+
+        features = tf.keras.Input(shape=(None, self.feature_D), name="features")
+        features_tensor = features
+        features_tensor = L.Bidirectional(L.LSTM(units=32, return_sequences=True))(features_tensor)
+        features_tensor = L.Dropout(rate=0.1)(features_tensor)
+
         if self.task_num == 1:
             output_dim = self.label_processor.vocab_size
         else:
-            output_dims = [lp.vocab_size for lp in self.label_processor]
+            output_dim = [lp.vocab_size for lp in self.label_processor]
+
         config = self.hyper_parameters
         embed_model = self.embedding.embed_model
         # Define layers for BiLSTM
         layer_stack = [
             L.Bidirectional(L.LSTM(**config['layer_bilstm1'])),
-            L.Dropout(**config['layer_dropout']),
-            L.Conv1D(**config['conv_layer1']),
+            L.Dropout(rate=0.1),
+            # L.Conv1D(filters=128, kernel_size=3, padding='valid', activation='relu'),
+            # L.GlobalMaxPool1D()
         ]
 
         # tensor flow in Layers {tensor:=layer(tensor)}
         tensor = embed_model.output
+        # tensor = L.Concatenate(axis=-1)([tensor, features_tensor])
         for layer in layer_stack:
             tensor = layer(tensor)
 
-        '''
-        define attention layer
-        as a nlp-rookie im wondering whether this is a right way XD
-        '''
-        # query_value_attention_seq = L.Attention()([tensor, tensor])
+        tensor_non_features = L.GlobalMaxPool1D()(tensor)
+        tensor_non_features_att = L.GlobalMaxPool1D()(L.Attention()([tensor, tensor]))
+        tensor_non_features = L.Concatenate(axis=-1)([tensor_non_features, tensor_non_features_att])
+
+        tensor = L.Concatenate(axis=-1)([tensor, features_tensor])
+        tensor = L.Conv1D(filters=128, kernel_size=3, padding='valid', activation='relu')(tensor)
+
         query_value_attention_seq = L.MultiHeadAttention(
-            num_heads=8, key_dim=2, dropout=0.5
+            num_heads=2, key_dim=2, dropout=0.5
         )(tensor, tensor)
 
         query_encoding = L.GlobalMaxPool1D()(tensor)
         query_value_attention = L.GlobalMaxPool1D()(query_value_attention_seq)
-
-        tensor_2d = L.Concatenate(axis=-1)([query_encoding, query_value_attention])
-        # extend features
-        input_tensor = L.Concatenate(axis=-1)([features, tensor_2d])
+        input_tensor = L.Concatenate()([query_encoding, query_value_attention])
 
         # output tensor
-        input_tensor = L.Dropout(**config['layer_dropout_output'])(input_tensor)
+        input_tensor = L.Dropout(rate=0.1)(input_tensor)
+        tensor_non_features = L.Dropout(rate=0.1)(tensor_non_features)
         if self.task_num == 1:
-            output_tensor = L.Dense(output_dim, activation='softmax', name="output0")(input_tensor)
+            output_tensor = L.Dense(output_dim,
+                                    activation='softmax', name="output0", kernel_regularizer=l2_reg)(input_tensor)
             self.tf_model = tf.keras.Model(inputs=[embed_model.inputs, features], outputs=output_tensor)
         else:
-            # output_tensor = [L.Dense(output_dims[i], activation='sigmoid', name="output" + str(i))(input_layer)
-            #                  for i in range(self.task_num)]
-            output_tensor = [L.Dense(output_dims[0], activation='softmax', name="output0")(input_tensor),
-                             L.Dense(output_dims[1], activation='sigmoid', name="output1")(input_tensor)]
+            activations = ['softmax', 'sigmoid', 'softmax']
+            inputs = [input_tensor, tensor_non_features, input_tensor]
 
-            # use this activation layer as final activation to support multi-label classification
-            # tensor = self._activation_layer()(tensor)
+            output_tensor = [L.Dense(output_dim[i], activation=activations[i], name="output" + str(i),
+                                     kernel_regularizer=l2_reg)(inputs[i])
+                             for i in range(self.task_num)]
+
+            # output_tensor = [L.Dense(output_dim[0],
+            #                          activation='softmax', name="output0", kernel_regularizer=l2_reg)(input_tensor),
+            #                  L.Dense(output_dim[1],
+            #                          activation='sigmoid', name="output1", kernel_regularizer=l2_reg)(input_tensor)]
 
             # Init model
             self.tf_model = tf.keras.Model(inputs=[embed_model.inputs, features], outputs=output_tensor)

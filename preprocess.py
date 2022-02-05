@@ -63,7 +63,7 @@ def generate_corpus(path):
     for path in ["./datasets/fulltext/train", "./datasets/fulltext/test"]:
         for file in tqdm(os.listdir(path)):
             with open("./datasets/corpora_add.txt", 'a+', encoding='utf-8') as f:
-                f.writelines(open(path+"/"+file, 'r', encoding='utf-8').readlines())
+                f.writelines(open(path + "/" + file, 'r', encoding='utf-8').readlines())
 
 
 def formatted(path, _label):
@@ -73,9 +73,9 @@ def formatted(path, _label):
     生成预训练所需要的数据
     """
     data = pd.read_csv(path + "SDP_train.csv", sep=',', header=0)
-
     output = [(data.loc[i, 'unique_id'],
-               clean_sentence(data.loc[i, 'citation_context'].replace("#AUTHOR_TAG", "TAG")),
+               clean_sentence(data.loc[i, 'citation_context'].replace("#AUTHOR_TAG", "TAG")) + ' ' +
+               data.loc[i, 'cited_title'] + ' ' + data.loc[i, 'citing_title'],
                str(data.loc[i, _label]))
               for i in range(len(data))]
     # output = []
@@ -155,13 +155,43 @@ def build_3c_feature_dic(type_):
     for i, author in enumerate(author_set):
         author_dic[author] = float(i)
     output = (title_dic, author_dic)
-    pickle.dump(output, open("./datasets/3c_feature_dic_"+type_+".pkl", 'wb'))
+    pickle.dump(output, open("./datasets/3c_feature_dic_" + type_ + ".pkl", 'wb'))
 
 
 def clean_sentence(s: str):
     s = "".join(re.findall('[a-zA-Z :!?]', s))
     return " ".join([token.text for token in tagger(s)])
     # return "".join(re.findall('[a-zA-Z ]', s))
+
+
+# 为3c多任务进行预处理
+def process_mt_3c():
+    paths = ["./datasets/3c-shared/intent/SDP_train.csv", "./datasets/3c-shared/influence/SDP_train.csv"]
+
+    data1 = pd.read_csv(paths[0], sep=",", header=0)
+    data2 = pd.read_csv(paths[1], sep=",", header=0)
+    datas = []
+    stat = [0, 0, 0, 0]
+    for i in range(len(data1)):
+        dic = {'intent': str(data1['citation_class_label'][i]), 'influence': str(data2['citation_influence_label'][i])}
+        with open(f'./datasets/3c-shared/fulltext/train/{data1["core_id"][i]}.txt', 'r', encoding='utf-8') as f:
+            fulltext = ''.join([line.replace('\n', '') for line in f.readlines()])
+            pos = fulltext.find(data1['citation_context'][i].replace('#AUTHOR_TAG', '').strip(' ')[:10])
+            if pos == -1:
+                print(fulltext, '\n', data1['citation_context'][i])
+                exit(9)
+            dic['offset'] = int((pos / len(fulltext))*100 // 33) if pos != -1 else 3
+            stat[dic['offset']] += 1
+        datas.append(dic)
+    print(stat)
+    with open('./datasets/3c-shared/multi_labels.jsonl', 'w', encoding='utf-8') as f:
+        for data in datas:
+            # print(data)
+            f.write(json.dumps(data)+'\n')
+
+
+# 3c多标签生成
+process_mt_3c()
 
 # 3c-task语料处理
 # formatted("datasets/3c-shared/intent/", 'citation_class_label')
@@ -170,7 +200,7 @@ def clean_sentence(s: str):
 # formatted_test("datasets/3c-shared/influence/")
 
 # 3c-语料特征文件构建，事先抽取
-# generate_corpus("datasets/intent/")
+# generate_corpus("./datasets/3c-shared/intent/")
 # for _ in ["test", "train"]:
 #     build_3c_feature_dic(_)
 
@@ -185,12 +215,12 @@ def clean_sentence(s: str):
 #         f.write(dic)
 
 # 预处理scicite
-label = {'result': '0', 'background': '1', 'method': '2'}
-stat = {}
-for key in label.keys():
-    stat[key] = 0
-for t in ['train', 'dev', 'test']:
-    process_sci("./datasets/scicite/", t, label, stat, context_label='string', intent_label='label')
+# label = {'result': '0', 'background': '1', 'method': '2'}
+# stat = {}
+# for key in label.keys():
+#     stat[key] = 0
+# for t in ['train', 'dev', 'test']:
+#     process_sci("./datasets/scicite/", t, label, stat, context_label='string', intent_label='label')
 
 # 预处理acl-arc
 # label = {'Background': '0', 'CompareOrContrast': '1', 'Extends': '2', 'Future': '3', 'Motivation': '4', 'Uses': '5'}
