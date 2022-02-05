@@ -4,7 +4,6 @@
 [![](https://img.shields.io/badge/paper%20of-@CCIR2021-blue.svg)](https://ccir2021.dlufl.edu.cn/ccirEssay/essay/index.html)
 <hr>
 
-基于[kashgari](https://github.com/BrikerMan/Kashgari) / [transformers](https://huggingface.co/transformers/)  
 Features：多特征融合，多分类任务（迁移学习），多种预训练语言模型适配
 
 > requirements  
