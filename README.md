@@ -11,8 +11,10 @@ Features：多特征融合，多分类任务（迁移学习），多种预训练
 >- kashgari 2.0.1
 
 > 更新日志（from beta v0.2）：  
-> 2021.06.18 (β v0.2)  
->> 大版本 实现XLNet，MPNet微调，优化
+>- 2021.06.18 (β v0.2)  
+>>- 大版本 实现XLNet，MPNet微调，优化  
+>- 2021.01 (β v0.3)
+>>- 增加了scffold_model模型结构，实现Structual-Scaffold的模型结构
 
 > 项目结构：  
 >- run.py 程序入口
