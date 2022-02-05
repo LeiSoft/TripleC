@@ -3,18 +3,21 @@
 ### Citation Intent Classification Method Based on MPNet Pretraining and Multi-Head Attention
 [![](https://img.shields.io/badge/paper%20of-@CCIR2021-blue.svg)](https://ccir2021.dlufl.edu.cn/ccirEssay/essay/index.html)
 <hr>
-基于[kashgari](https://github.com/BrikerMan/Kashgari) /  [transformers](https://huggingface.co/transformers/)  
+
+基于[kashgari](https://github.com/BrikerMan/Kashgari) / [transformers](https://huggingface.co/transformers/)  
 Features：多特征融合，多分类任务（迁移学习），多种预训练语言模型适配
 
 > requirements  
->- tensorflow 2.*
->- kashgari 2.0.1
+>- 参见TripleC_init.sh  
+
+**项目初始化及执行参见init.ipynb**
 
 > 更新日志（from beta v0.2）：  
 >- 2021.06.18 (β v0.2)  
 >>- 大版本 实现XLNet，MPNet微调，优化  
 >- 2021.01 (β v0.3)
->>- 增加了scffold_model模型结构，实现Structual-Scaffold的模型结构
+>>- 增加了scaffold_model多任务模型结构，实现Structual-Scaffold的模型结构  
+>>  我发现scaffold的不同数量的样本输入用kashgari改太麻烦了，所以采用原生的tensorflow实现
 
 > 项目结构：  
 >- run.py 程序入口
