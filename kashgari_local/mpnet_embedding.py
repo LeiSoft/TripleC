@@ -55,7 +55,7 @@ class MPNetEmbedding(ABCEmbedding):
         logger.debug("Loaded mpnet's vocab")
         logger.debug(f'config_path       : {self.config_path}')
         logger.debug(f'vocab_path      : {self.vocab_path}')
-        logger.debug(f'Top 50 words    : {top_words}')
+        # logger.debug(f'Top 50 words    : {top_words}')
         logger.debug('------------------------------------------------')
 
         return token2idx
@@ -77,7 +77,7 @@ class MPNetEmbedding(ABCEmbedding):
         targets = tf.keras.Input(shape=(None, ), name='output', dtype='int32')
 
         mpnet = TFMPNetModel.from_pretrained(self.mpnet_path)
-        mpnet_encodings = mpnet(inputs).hidden_states[3]
+        mpnet_encodings = mpnet(inputs).hidden_states[1]
 
         model = tf.keras.Model(inputs=[inputs, targets], outputs=mpnet_encodings)
 
