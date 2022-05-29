@@ -2,6 +2,7 @@
 ### work#1:
 ### Citation Intent Classification Method Based on MPNet Pretraining and Multi-Head Attention
 [![](https://img.shields.io/badge/paper%20of-@CCIR2021-blue.svg)](https://ccir2021.dlufl.edu.cn/ccirEssay/essay/index.html)
+[![](https://img.shields.io/badge/paper%20of-《模式识别与人工智能》-blue.svg)](http://manu46.magtech.com.cn/Jweb_prai/CN/abstract/abstract12357.shtml)
 <hr>
 
 Features：多特征融合，多分类任务（迁移学习），多种预训练语言模型适配
@@ -21,13 +22,15 @@ Features：多特征融合，多分类任务（迁移学习），多种预训练
 > 项目结构：  
 >- run.py 程序入口
 >- utils.py 数据读取，输入数据构建
->- train.py 模型训练（高层封装）
+>- train.py 模型训练
 >- preprocess.py 数据预处理
 >- datasets 数据集
 >- features
 >>- extractor.py 从数据中抽取特征
 >>- features_layers.py 特征融合层
 >- models 模型输出、模型结构
+>>- RCNN_Att.py 基于kashgari实现的特征融合模型
+>>- Scaffold_model.py 多任务模型结构
 >- pretrain.py 预训练语言模型
 >> covert_pytorch_checkpoit_to_tf2.py 根据huggingface transformers改进的pytorch模型转tensorflow模型  
 >> 预训练工作参见[我的博客](http://hikki.top/2021/03/29/%e5%a6%82%e4%bd%95%e8%ae%ad%e7%bb%83%e4%b8%80%e4%b8%aa%e7%ae%80%e5%8d%95%e7%9a%84bert%e8%af%ad%e8%a8%80%e6%a8%a1%e5%9e%8b%ef%bc%88%e6%94%af%e6%8c%81pytorchtf1-tf2/)  
