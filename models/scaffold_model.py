@@ -12,22 +12,33 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 from sklearn import metrics as sklearn_metrics
 
 from bert4keras.models import build_transformer_model
-from transformers import TFMPNetModel, TFBertModel, BertModel
+from transformers import TFMPNetModel, TFBertModel
+from kashgari.embeddings import WordEmbedding
 
 
 class Scaffold_Model():
     def __init__(self, embedding_path, embedding_type, output_dims, feature_D):
-        self.vocab_path = f'{embedding_path}/vocab.txt'
         self.embedding_type = embedding_type
         self.output_dims = output_dims
         self.feature_D = feature_D
 
         self.id2label_list, self.label2id_list = [], []
         self.token2idx = {}
-        with open(self.vocab_path, 'r', encoding='utf-8') as reader:
-            for line in reader.readlines():
-                token = line.strip()
-                self.token2idx[token] = len(self.token2idx)
+        # 对于词向量 embedding_type直接指向文件而非文件夹
+        if self.embedding_type == 'w2v':
+            # +4：参照kashgari.embeddings.word_embeddings.py 0-4为特殊token，如果不使用kashgari需要修改
+            self.token2idx = {'[PAD]': 0,'[UNK]': 1,'[BOS]': 2,'[EOS]': 3}
+            with open(embedding_path, 'r', encoding='utf-8') as reader:
+                reader.readline() # 首行为(词表size 向量维度) 跳过
+                for line in reader.readlines():
+                    vectors = line.strip().split()
+                    self.token2idx[vectors[0]] = len(self.token2idx) + 4
+        else:
+            self.vocab_path = f'{embedding_path}/vocab.txt'
+            with open(self.vocab_path, 'r', encoding='utf-8') as reader:
+                for line in reader.readlines():
+                    token = line.strip()
+                    self.token2idx[token] = len(self.token2idx)
         
         if embedding_type == 'mpnet':
             self.embedding = TFMPNetModel.from_pretrained(embedding_path)
@@ -37,11 +48,15 @@ class Scaffold_Model():
             #                                      application='encoder',
             #                                      return_keras_model=True)
             self.embedding = TFBertModel.from_pretrained(embedding_path, from_pt=True)
-
-        for layer in self.embedding.layers:
-            layer.trainable = False
+        if embedding_type == 'w2v':
+            self.embedding = WordEmbedding(embedding_path)
+            self.embedding.build_embedding_model()
+        else:
+            for layer in self.embedding.layers:
+                layer.trainable = False
         
         self.model = self.build_model_arc()
+        # 1 0.1 0.05
         self.model.compile(loss=losses.SparseCategoricalCrossentropy(),
                            loss_weights=[1, 0.1, 0.05],
                            optimizer=optimizers.Adam(),
@@ -52,7 +67,12 @@ class Scaffold_Model():
         max_len = 0
         seq_encodes = []
         for i in range(len(seqs)):
-            seq_encode = [self.token2idx[word] for word in seqs[i]]
+            seq_encode = []
+            for word in seqs[i]:
+                if word not in self.token2idx:
+                    seq_encode.append(1)
+                else:
+                    seq_encode.append(self.token2idx[word])
             max_len = max(max_len, len(seq_encode))
             seq_encodes.append(seq_encode)
         return pad_sequences(seq_encodes, padding="post", truncating="post", value=0, maxlen=max_len, dtype='int32')
@@ -70,10 +90,13 @@ class Scaffold_Model():
         return np.array([int(label) for label in labels])
     
     def fusion_layer(self, tensor, features_tensor):
+
         if self.embedding_type == 'mpnet':
             tensor = self.embedding(tensor).hidden_states[1]
         if self.embedding_type == 'bert_hf':
             tensor = self.embedding(tensor).hidden_states[1]
+        if self.embedding_type == 'w2v':
+            tensor = self.embedding.embed_model(tensor)
 
         tensor = L.Bidirectional(L.LSTM(units=128, return_sequences=True))(tensor)
         tensor = L.Dropout(rate=0.1)(tensor)
@@ -85,7 +108,7 @@ class Scaffold_Model():
         tensor = L.Conv1D(filters=128, kernel_size=3, padding='valid', activation='relu')(tensor)
 
         query_value_attention_seq = L.MultiHeadAttention(
-            num_heads=2, key_dim=2, dropout=0.5
+            num_heads=2, key_dim=2, dropout=0.5, name='matt'
         )(tensor, tensor)
 
         query_encoding = L.GlobalMaxPool1D()(tensor)
@@ -101,6 +124,8 @@ class Scaffold_Model():
             tensor = self.embedding(tensor).hidden_states[1]
         if self.embedding_type == 'bert_hf':
             tensor = self.embedding(tensor).hidden_states[2]
+        if self.embedding_type == 'w2v':
+            tensor = self.embedding.embed_model(tensor)
 
         tensor = L.Bidirectional(L.LSTM(units=128, return_sequences=True))(tensor)
         tensor = L.Dropout(rate=0.1)(tensor)
@@ -149,7 +174,7 @@ class Scaffold_Model():
 
         self.model.fit(data, labels, validation_split=0.1, batch_size=batch_size, epochs=epoch)
     
-    def evaluate(self, x0, y0, x1, y1, x2, y2, f, batch_size):
+    def evaluate(self, x0, y0, x1, y1, x2, y2, f, batch_size, output_x_y=None):
         data, y_data = {}, []
         for i in range(3):
             data[f'data{i}'] = self.encode_seq(eval(f'x{i}'))
@@ -178,9 +203,19 @@ class Scaffold_Model():
             {'data0':virtual_data0[:len1], 'data1':data['data1'], 'data2':virtual_data2[:len1], 'features':virtual_f[:len1]},
             {'data0':virtual_data0[:len2], 'data1':virtual_data1[:len2], 'data2':data['data2'], 'features':virtual_f[:len2]}
         ]
+
+        # 保存注意力权重
+        # print(x0[1])
+        # middle_model = tf.keras.Model(inputs=self.model.input, outputs=self.model.get_layer('matt').output)
+        # att_matrix = middle_model.predict(inputs_data_list[i], batch_size=batch_size)
+        # print(tf.shape(att_matrix[0]))
+        # pickle.dump((x0[1], att_matrix[1]), open('./reference/acl_att_map_single.pkl', 'wb'))
+        # exit(9)
+
         for i in range(1):
             pred = self.model.predict(inputs_data_list[i], batch_size=batch_size)
             pred_max = pred[i].argmax(-1)
+
             print(sklearn_metrics.classification_report(y_data[i],
                             pred_max, output_dict=False, digits=4))
             original_report= sklearn_metrics.classification_report(y_data[i],
@@ -192,6 +227,13 @@ class Scaffold_Model():
 
             # pickle.dump(sklearn_metrics.confusion_matrix(y_data[i], pred_max),
             #     open(f'./reference/scaffold_confusion_matrix_task{i}.pkl', 'wb'))
+
+            # 输出具体样本判断结果
+            if output_x_y:
+                with open('./reference/samples_result.tsv', 'w', encoding='utf-8') as f:
+                    f.write('text\tpred\ttrue\n')
+                    for i in range(len(pred_max)):
+                        f.write(f'{output_x_y[0][i]}\t{pred_max[i]}\t{output_x_y[1][i]}\n')
 
         return reports
             
